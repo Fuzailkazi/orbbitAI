@@ -62,7 +62,7 @@ function CollapseToggle() {
   return (
     <button
       onClick={toggleSidebar}
-      className="absolute -right-3 top-7 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition-colors hover:bg-slate-50"
+      className="absolute -right-3 top-16 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition-colors hover:bg-slate-50"
       aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
     >
       <ChevronLeft
@@ -89,12 +89,12 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-2 group-data-[collapsible=icon]:px-0">
         <NavGroup label="Overview" items={overviewNav} pathname={pathname} />
         <NavGroup label="Evaluation" items={evalNav} pathname={pathname} />
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-slate-100 p-2">
+      <SidebarFooter className="border-t border-slate-100 p-2 group-data-[collapsible=icon]:px-0">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Help" className="text-slate-500 hover:bg-slate-50 hover:text-slate-700">
