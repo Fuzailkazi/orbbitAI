@@ -59,8 +59,8 @@ export function AppSidebar() {
   const pathname = usePathname();
   return (
     <Sidebar collapsible="icon" className="border-r border-slate-200 bg-white">
-      <SidebarHeader className="p-4">
-        <Link href="/" className="flex items-center gap-2.5">
+      <SidebarHeader className="px-3 py-4 group-data-[collapsible=icon]:px-2">
+        <Link href="/" className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 shadow-sm">
             <span className="text-sm font-bold text-white">O</span>
           </div>
@@ -71,11 +71,11 @@ export function AppSidebar() {
           <Input placeholder="Search Menu" className="h-8 rounded-lg border-slate-200 bg-slate-50 pl-8 text-xs text-slate-600 placeholder:text-slate-400 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200" />
         </div>
       </SidebarHeader>
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-2 group-data-[collapsible=icon]:px-1">
         <NavGroup label="Overview" items={overviewNav} pathname={pathname} />
         <NavGroup label="Evaluation" items={evalNav} pathname={pathname} />
       </SidebarContent>
-      <SidebarFooter className="border-t border-slate-100 p-2">
+      <SidebarFooter className="border-t border-slate-100 p-2 group-data-[collapsible=icon]:px-1">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Help" className="text-slate-500 hover:bg-slate-50 hover:text-slate-700">
