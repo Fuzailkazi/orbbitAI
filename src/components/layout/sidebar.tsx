@@ -62,7 +62,7 @@ function CollapseToggle() {
   return (
     <button
       onClick={toggleSidebar}
-      className="absolute -right-3 top-16 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition-colors hover:bg-slate-50"
+      className="absolute -right-3 top-13 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition-colors hover:bg-slate-50"
       aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
     >
       <ChevronLeft
