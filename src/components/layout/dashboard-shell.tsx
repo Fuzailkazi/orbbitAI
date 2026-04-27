@@ -7,11 +7,13 @@ import { Topbar } from "./topbar";
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <Topbar />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
-      </SidebarInset>
+      <div className="flex h-screen overflow-hidden">
+        <AppSidebar />
+        <SidebarInset className="flex flex-1 flex-col overflow-hidden">
+          <Topbar />
+          <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        </SidebarInset>
+      </div>
     </SidebarProvider>
   );
 }

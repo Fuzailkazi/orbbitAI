@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import {
   LayoutDashboard, Layers, Trophy, Columns3, LayoutGrid, Play,
-  Settings, HelpCircle, LogOut,
+  Settings,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -75,13 +75,13 @@ function CollapseToggle() {
 export function AppSidebar() {
   const pathname = usePathname();
   return (
-    <Sidebar collapsible="icon" className="relative border-r border-slate-200 bg-white">
+    <Sidebar collapsible="icon" className="relative border-r border-slate-200 bg-white h-full">
       <CollapseToggle />
 
-      <SidebarHeader className="px-3 py-4">
+      <SidebarHeader className="px-3 py-3 shrink-0">
         <Link href="/" className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 shadow-sm">
-            <span className="text-sm font-bold text-white">O</span>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 shadow-sm">
+            <span className="text-xs font-bold text-white">O</span>
           </div>
           <span className="text-[15px] font-bold tracking-tight text-slate-900 group-data-[collapsible=icon]:hidden">
             Orbbit
@@ -89,26 +89,16 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 group-data-[collapsible=icon]:px-0">
+      <SidebarContent className="px-2 group-data-[collapsible=icon]:px-0 overflow-y-auto">
         <NavGroup label="Overview" items={overviewNav} pathname={pathname} />
         <NavGroup label="Evaluation" items={evalNav} pathname={pathname} />
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-slate-100 p-2 group-data-[collapsible=icon]:px-0">
+      <SidebarFooter className="shrink-0 border-t border-slate-100 p-1.5 group-data-[collapsible=icon]:px-0">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Help" className="text-slate-500 hover:bg-slate-50 hover:text-slate-700">
-              <HelpCircle className="h-4 w-4 shrink-0" /><span>Help & Docs</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Settings" render={<Link href="/settings" />} className="text-slate-500 hover:bg-slate-50 hover:text-slate-700">
               <Settings className="h-4 w-4 shrink-0" /><span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Sign Out" className="text-slate-500 hover:bg-red-50 hover:text-red-600">
-              <LogOut className="h-4 w-4 shrink-0" /><span>Sign Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
