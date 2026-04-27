@@ -126,6 +126,31 @@
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    @apply font-sans scroll-smooth;
+  }
+  /* Enterprise focus states */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  /* Smooth transitions on interactive elements */
+  button, a, input, select, textarea {
+    transition: color 150ms ease, background-color 150ms ease,
+                border-color 150ms ease, box-shadow 150ms ease;
+  }
+  /* Cursor pointer on clickable elements */
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  /* Tabular numbers for data */
+  .font-mono, [data-metric] {
+    font-variant-numeric: tabular-nums;
   }
 }
