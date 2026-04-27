@@ -3,6 +3,7 @@ import {
   Layers, BarChart3, GitCompareArrows, Trophy,
   ArrowRight, Zap, Shield, Globe,
 } from "lucide-react";
+import { VendorLogos } from "@/components/marketing/vendor-logos";
 
 const stats = [
   { label: "AI Models", value: "177+" },
@@ -32,11 +33,6 @@ const features = [
     title: "Dynamic Leaderboard",
     desc: "Rank models with adjustable weights. Quality-first, budget pick, or your own formula.",
   },
-];
-
-const vendors = [
-  "OpenAI", "Anthropic", "Google", "Meta", "Mistral",
-  "DeepSeek", "xAI", "Cohere", "NVIDIA", "Amazon",
 ];
 
 export default function LandingPage() {
@@ -131,11 +127,7 @@ export default function LandingPage() {
           <p className="mb-8 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
             Models from leading AI providers
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-            {vendors.map((v) => (
-              <span key={v} className="text-sm font-medium text-slate-400">{v}</span>
-            ))}
-          </div>
+          <VendorLogos />
         </div>
       </section>
 
