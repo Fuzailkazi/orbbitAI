@@ -14,15 +14,15 @@ import {
 } from "@/components/ui/sidebar";
 
 const overviewNav = [
-  { label: "Overview", href: "/", icon: LayoutDashboard },
-  { label: "Models", href: "/models", icon: Layers },
-  { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
-  { label: "Compare", href: "/compare", icon: Columns3 },
+  { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Models", href: "/dashboard/models", icon: Layers },
+  { label: "Leaderboard", href: "/dashboard/leaderboard", icon: Trophy },
+  { label: "Compare", href: "/dashboard/compare", icon: Columns3 },
 ];
 
 const evalNav = [
-  { label: "Spaces", href: "/spaces", icon: LayoutGrid },
-  { label: "Evaluations", href: "/evaluations", icon: Play },
+  { label: "Spaces", href: "/dashboard/spaces", icon: LayoutGrid },
+  { label: "Evaluations", href: "/dashboard/evaluations", icon: Play },
 ];
 
 function NavGroup({ label, items, pathname }: { label: string; items: typeof overviewNav; pathname: string }) {
@@ -34,7 +34,7 @@ function NavGroup({ label, items, pathname }: { label: string; items: typeof ove
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => {
-            const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const isActive = item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
             return (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
