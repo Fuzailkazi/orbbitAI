@@ -27,9 +27,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} dark h-full antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0A0F1E]">
+      <body className="min-h-full flex flex-col bg-[#F8FAFC]">
         <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>

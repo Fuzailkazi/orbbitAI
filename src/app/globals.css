@@ -49,38 +49,39 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Orbbit light theme — clean enterprise */
+  --background: #F8FAFC;             /* slate-50: page bg */
+  --foreground: #0F172A;             /* slate-900: primary text */
+  --card: #FFFFFF;                   /* white cards */
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #4F46E5;                /* indigo-600: brand */
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;             /* slate-100: secondary surfaces */
+  --secondary-foreground: #334155;   /* slate-700 */
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;       /* slate-500 */
+  --accent: #EEF2FF;                /* indigo-50: accent bg */
+  --accent-foreground: #4F46E5;
+  --destructive: #EF4444;
+  --border: #E2E8F0;                /* slate-200: subtle borders */
+  --input: #E2E8F0;
+  --ring: #4F46E5;
+  --chart-1: #4F46E5;              /* Indigo */
+  --chart-2: #10B981;              /* Emerald */
+  --chart-3: #F59E0B;              /* Amber */
+  --chart-4: #EC4899;              /* Pink */
+  --chart-5: #8B5CF6;              /* Violet */
+  --radius: 0.75rem;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #334155;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EEF2FF;        /* indigo-50 */
+  --sidebar-accent-foreground: #4F46E5;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #4F46E5;
 }
 
 .dark {
