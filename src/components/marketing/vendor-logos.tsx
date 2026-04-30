@@ -1,4 +1,3 @@
-
 const vendors = [
   { name: "OpenAI", color: "#000000" },
   { name: "Anthropic", color: "#D4A574" },
