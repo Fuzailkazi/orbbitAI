@@ -1,15 +1,14 @@
 import { createServerClient } from "@/lib/supabase/server";
-import type { Model } from "@/types/database";
 import { LeaderboardClient } from "./leaderboard-client";
 
 export default async function LeaderboardPage() {
   const supabase = await createServerClient();
 
-  const { data: models, error } = await supabase
-    .from("models")
-    .select("*")
-    .eq("is_active", true)
-    .order("name", { ascending: true });
+  const { data: evaluations, error } = await supabase
+    .from("evaluations")
+    .select("*, models(*), benchmarks(id, name, category)")
+    .eq("status", "completed")
+    .order("accuracy", { ascending: false });
 
   const { data: benchmarks } = await supabase
     .from("benchmarks")
@@ -26,7 +25,7 @@ export default async function LeaderboardPage() {
 
   return (
     <LeaderboardClient
-      models={(models as Model[]) ?? []}
+      evaluations={evaluations ?? []}
       benchmarks={benchmarks ?? []}
     />
   );
