@@ -11,6 +11,11 @@ export default async function ComparePage() {
     .eq("is_active", true)
     .order("name", { ascending: true });
 
+  const { data: evaluations } = await supabase
+    .from("evaluations")
+    .select("model_id, accuracy, accuracy_ci_lower, accuracy_ci_upper, avg_latency_ms, tokens_per_second, benchmarks(name)")
+    .eq("status", "completed");
+
   if (error) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -19,5 +24,5 @@ export default async function ComparePage() {
     );
   }
 
-  return <CompareClient models={(models as Model[]) ?? []} />;
+  return <CompareClient models={(models as Model[]) ?? []} evaluations={evaluations ?? []} />;
 }
