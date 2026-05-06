@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, SlidersHorizontal, Info } from "lucide-react";
+import { Trophy, SlidersHorizontal, Info, BarChart3 } from "lucide-react";
+import { TopModelsChart } from "@/components/charts/top-models-chart";
 
 interface EvalRow {
   id: string;
@@ -174,6 +175,27 @@ export function LeaderboardClient({
           </div>
         </CardContent>
       </Card>
+
+      {/* Top Models Chart */}
+      {ranked.length > 0 && (
+        <Card className="border-slate-200 bg-white shadow-sm">
+          <CardHeader className="flex flex-row items-center gap-2 border-b border-slate-100 pb-3">
+            <BarChart3 className="h-4 w-4 text-slate-400" />
+            <CardTitle className="text-sm font-semibold text-slate-900">Value Score Distribution</CardTitle>
+          </CardHeader>
+          <CardContent className="p-5">
+            <TopModelsChart
+              data={ranked.slice(0, 12).map(({ ev, score }) => ({
+                name: ev.models.name,
+                score,
+                vendor: ev.models.vendor,
+              }))}
+              label="Value Score"
+              height={280}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Ranked Table */}
       <Card className="border-slate-200 bg-white shadow-sm">

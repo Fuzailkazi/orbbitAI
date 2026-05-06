@@ -24,5 +24,5 @@ export default async function ComparePage() {
     );
   }
 
-  return <CompareClient models={(models as Model[]) ?? []} evaluations={evaluations ?? []} />;
+  return <CompareClient models={(models as Model[]) ?? []} evaluations={(evaluations ?? []) as unknown as Array<{ model_id: string; accuracy: number; accuracy_ci_lower: number; accuracy_ci_upper: number; avg_latency_ms: number; tokens_per_second: number; benchmarks: { name: string } | null }>} />;
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Model } from "@/types/database";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GitCompareArrows, Check } from "lucide-react";
+import { BenchmarkRadarChart } from "@/components/charts/benchmark-radar-chart";
 
 interface EvalData {
   model_id: string;
@@ -74,21 +75,42 @@ export function CompareClient({ models, evaluations }: { models: Model[]; evalua
             </CardContent>
           </Card>
           {shared.length > 0 && (
-            <Card className="border-slate-200 bg-white shadow-sm">
-              <CardHeader className="flex flex-row items-center gap-2 border-b border-slate-100"><GitCompareArrows className="h-4 w-4 text-slate-400"/><CardTitle className="text-sm font-semibold text-slate-900">Benchmark Accuracy</CardTitle></CardHeader>
-              <CardContent className="p-5">
-                <div className="grid grid-cols-3 items-center border-b border-slate-100 pb-3 mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Benchmark</span>
-                  <span className="text-center text-xs font-semibold text-slate-700">{a.name}</span>
-                  <span className="text-center text-xs font-semibold text-slate-700">{b.name}</span>
-                </div>
-                {shared.map((bench) => {
-                  const accA = eA.find((e) => (e.benchmarks as unknown as {name:string})?.name === bench)?.accuracy ?? 0;
-                  const accB = eB.find((e) => (e.benchmarks as unknown as {name:string})?.name === bench)?.accuracy ?? 0;
-                  return <Row key={bench} label={bench} a={`${accA.toFixed(1)}%`} b={`${accB.toFixed(1)}%`} better={accA>accB?"a":accA<accB?"b":"tie"}/>;
-                })}
-              </CardContent>
-            </Card>
+            <>
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <CardHeader className="flex flex-row items-center gap-2 border-b border-slate-100"><GitCompareArrows className="h-4 w-4 text-slate-400"/><CardTitle className="text-sm font-semibold text-slate-900">Benchmark Accuracy</CardTitle></CardHeader>
+                <CardContent className="p-5">
+                  <div className="grid grid-cols-3 items-center border-b border-slate-100 pb-3 mb-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Benchmark</span>
+                    <span className="text-center text-xs font-semibold text-slate-700">{a.name}</span>
+                    <span className="text-center text-xs font-semibold text-slate-700">{b.name}</span>
+                  </div>
+                  {shared.map((bench) => {
+                    const accA = eA.find((e) => (e.benchmarks as unknown as {name:string})?.name === bench)?.accuracy ?? 0;
+                    const accB = eB.find((e) => (e.benchmarks as unknown as {name:string})?.name === bench)?.accuracy ?? 0;
+                    return <Row key={bench} label={bench} a={`${accA.toFixed(1)}%`} b={`${accB.toFixed(1)}%`} better={accA>accB?"a":accA<accB?"b":"tie"}/>;
+                  })}
+                </CardContent>
+              </Card>
+              {shared.length >= 3 && (
+                <Card className="border-slate-200 bg-white shadow-sm">
+                  <CardHeader className="flex flex-row items-center gap-2 border-b border-slate-100">
+                    <GitCompareArrows className="h-4 w-4 text-slate-400" />
+                    <CardTitle className="text-sm font-semibold text-slate-900">Accuracy Radar</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-5">
+                    <BenchmarkRadarChart
+                      nameA={a.name}
+                      nameB={b.name}
+                      data={shared.map((bench) => ({
+                        benchmark: bench,
+                        modelA: eA.find((e) => (e.benchmarks as unknown as {name:string})?.name === bench)?.accuracy ?? 0,
+                        modelB: eB.find((e) => (e.benchmarks as unknown as {name:string})?.name === bench)?.accuracy ?? 0,
+                      }))}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </>
       ) : (

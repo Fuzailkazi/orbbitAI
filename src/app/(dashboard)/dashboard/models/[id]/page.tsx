@@ -5,8 +5,9 @@ import type { Model } from "@/types/database";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, Globe, Cpu, DollarSign, Tag, Calendar, Zap, BarChart3,
+  ArrowLeft, Globe, Cpu, DollarSign, Tag, Calendar, Zap, BarChart3, TrendingUp,
 } from "lucide-react";
+import { ModelBenchmarkChart } from "./model-benchmark-chart";
 
 const categoryColors: Record<string, string> = {
   chat: "bg-indigo-50 text-indigo-600",
@@ -117,6 +118,29 @@ export default async function ModelDetailPage({
             {m.tags.map((tag) => (
               <Badge key={tag} variant="outline" className="border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">{tag}</Badge>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Accuracy Chart */}
+      {evaluations.length > 0 && (
+        <Card className="border-slate-200 bg-white shadow-sm">
+          <CardHeader className="flex flex-row items-center gap-2 border-b border-slate-100">
+            <TrendingUp className="h-4 w-4 text-slate-400" />
+            <CardTitle className="text-sm font-semibold text-slate-900">Accuracy by Benchmark</CardTitle>
+          </CardHeader>
+          <CardContent className="p-5">
+            <ModelBenchmarkChart
+              data={evaluations.map((ev: Record<string, unknown>) => {
+                const bench = ev.benchmarks as { name: string; category: string } | null;
+                return {
+                  name: bench?.name ?? "Unknown",
+                  accuracy: ev.accuracy as number,
+                  ci_lower: ev.accuracy_ci_lower as number,
+                  ci_upper: ev.accuracy_ci_upper as number,
+                };
+              })}
+            />
           </CardContent>
         </Card>
       )}
