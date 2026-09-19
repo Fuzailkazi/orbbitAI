@@ -47,9 +47,7 @@ export default function LandingPage() {
             </div>
             <span className="text-[15px] font-bold tracking-tight text-slate-900">Orbbit</span>
           </Link>
-          <div className="flex items-center gap-6">
-            <Link href="/dashboard/models" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">Models</Link>
-            <Link href="/dashboard/leaderboard" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">Leaderboard</Link>
+          <div className="flex items-center gap-4">
             <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Sign In</Link>
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700">
               Open Dashboard <ArrowRight className="h-3.5 w-3.5" />
