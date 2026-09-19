@@ -6,14 +6,13 @@ import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Code2, Mail, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const router = useRouter();
   const supabase = createBrowserClient();
 
@@ -21,36 +20,35 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
-    if (error) { setError(error.message); setLoading(false); return; }
-    setSuccess(true);
-    setLoading(false);
-  }
 
-  async function handleOAuth(provider: "github" | "google") {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) setError(error.message);
-  }
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
 
-  if (success) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4">
-        <Card className="w-full max-w-sm border-slate-200 bg-white shadow-sm">
-          <CardContent className="py-10 text-center">
-            <Mail className="mx-auto h-8 w-8 text-indigo-600 mb-3" />
-            <p className="text-sm font-medium text-slate-900">Check your email</p>
-            <p className="mt-1 text-xs text-slate-500">We sent a confirmation link to {email}</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    // If auto-confirm is enabled or session created directly:
+    if (data.session) {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    // Otherwise try signing in directly
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+    if (!signInErr) {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    // If confirmation email is strictly enforced
+    router.push("/login");
   }
 
   return (
@@ -70,29 +68,42 @@ export default function SignupPage() {
             <p className="text-sm text-slate-500">Start evaluating AI models</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <button onClick={() => handleOAuth("github")} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
-                <Code2 className="h-4 w-4" /> Continue with GitHub
-              </button>
-              <button onClick={() => handleOAuth("google")} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
-                <Mail className="h-4 w-4" /> Continue with Google
-              </button>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-              <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-slate-400">or</span></div>
-            </div>
             <form onSubmit={handleSignup} className="space-y-3">
               <div>
-                <label htmlFor="email" className="mb-1 block text-xs font-medium text-slate-600">Email</label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" required className="h-10 border-slate-200 bg-slate-50 text-sm" />
+                <label htmlFor="email" className="mb-1 block text-xs font-medium text-slate-600">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  required
+                  className="h-10 border-slate-200 bg-slate-50 text-sm"
+                />
               </div>
               <div>
-                <label htmlFor="password" className="mb-1 block text-xs font-medium text-slate-600">Password</label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" required minLength={6} className="h-10 border-slate-200 bg-slate-50 text-sm" />
+                <label htmlFor="password" className="mb-1 block text-xs font-medium text-slate-600">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  required
+                  minLength={6}
+                  className="h-10 border-slate-200 bg-slate-50 text-sm"
+                />
               </div>
               {error && <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
-              <button type="submit" disabled={loading} className="flex h-10 w-full items-center justify-center rounded-lg bg-indigo-600 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex h-10 w-full items-center justify-center rounded-lg bg-indigo-600 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+              >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Account"}
               </button>
             </form>
@@ -100,7 +111,9 @@ export default function SignupPage() {
         </Card>
         <p className="mt-4 text-center text-xs text-slate-500">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-700">Sign in</Link>
+          <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-700">
+            Sign in
+          </Link>
         </p>
       </div>
     </div>
