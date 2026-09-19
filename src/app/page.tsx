@@ -4,6 +4,7 @@ import {
   ArrowRight, Zap, Shield, Globe,
 } from "lucide-react";
 import { VendorLogos } from "@/components/marketing/vendor-logos";
+import { createServerClient } from "@/lib/supabase/server";
 
 const stats = [
   { label: "AI Models", value: "177+" },
@@ -35,7 +36,10 @@ const features = [
   },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
@@ -48,10 +52,21 @@ export default function LandingPage() {
             <span className="text-[15px] font-bold tracking-tight text-slate-900">Orbbit</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Sign In</Link>
-            <Link href="/dashboard" className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700">
-              Open Dashboard <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
+              >
+                Go to Dashboard <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
+              >
+                Sign In <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
           </div>
         </div>
       </nav>
@@ -70,18 +85,29 @@ export default function LandingPage() {
             Independent AI model evaluation you can trust. Compare accuracy, latency, and cost across 177+ models with transparent, reproducible benchmarks.
           </p>
           <div className="mt-8 flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
-            >
-              Start Exploring <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/dashboard/leaderboard"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-            >
-              View Leaderboard
-            </Link>
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
+              >
+                Open Dashboard <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
+                >
+                  Sign In to Get Started <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                >
+                  Create Account
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -98,53 +124,83 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="mx-auto max-w-6xl px-6 py-24">
-        <div className="text-center mb-14">
-          <h2 className="text-2xl font-bold text-slate-900">Built for engineering teams</h2>
-          <p className="mt-2 text-sm text-slate-500">Transparent benchmarks. Real data. No marketing fluff.</p>
+      {/* Vendor logos */}
+      <VendorLogos />
+
+      {/* Features grid */}
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <div className="text-center max-w-xl mx-auto mb-12">
+          <h2 className="text-2xl font-bold text-slate-900">Built for AI Engineers & Decision Makers</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Stop relying on self-reported benchmarks. Get multi-dimensional evaluation data that matters.
+          </p>
         </div>
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((f) => (
             <div
               key={f.title}
-              className="group rounded-xl border border-slate-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
+              className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
             >
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-100">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 mb-4">
                 <f.icon className="h-5 w-5" />
               </div>
               <h3 className="text-sm font-semibold text-slate-900">{f.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{f.desc}</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Trust: Vendors */}
-      <section className="border-t border-slate-100 bg-slate-50/50 py-16">
+      {/* Why Orbbit — Value prop */}
+      <section className="border-t border-slate-100 bg-slate-50/50 py-20">
         <div className="mx-auto max-w-6xl px-6">
-          <p className="mb-8 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Models from leading AI providers
-          </p>
-          <VendorLogos />
+          <div className="max-w-xl">
+            <h2 className="text-2xl font-bold text-slate-900">Why independent evaluation?</h2>
+            <p className="mt-3 text-sm text-slate-500 leading-relaxed">
+              Model providers publish benchmarks that flatter their models. Public leaderboards test narrow tasks.
+              Orbbit gives you the full picture — quality, speed, cost, and reliability — with statistical confidence intervals on every metric.
+            </p>
+          </div>
+          <div className="mt-10 grid gap-6 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+              <Shield className="h-5 w-5 text-indigo-600 mb-3" />
+              <h4 className="text-sm font-semibold text-slate-900">Statistically Rigorous</h4>
+              <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                Wilson score 95% confidence intervals on every accuracy number. No false precision.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+              <Zap className="h-5 w-5 text-indigo-600 mb-3" />
+              <h4 className="text-sm font-semibold text-slate-900">Multi-Dimensional</h4>
+              <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                Quality alone is useless without cost and latency. Our Value Score weighs all three.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+              <Globe className="h-5 w-5 text-indigo-600 mb-3" />
+              <h4 className="text-sm font-semibold text-slate-900">Vendor Neutral</h4>
+              <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                177+ models from 25 vendors evaluated on the exact same hardware and conditions.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="mx-auto max-w-6xl px-6 py-24 text-center">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <Shield className="h-4 w-4 text-indigo-600" />
-          <Globe className="h-4 w-4 text-indigo-600" />
+      {/* Bottom CTA */}
+      <section className="mx-auto max-w-6xl px-6 py-20 text-center">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 mb-6">
+          <BarChart3 className="h-6 w-6" />
         </div>
         <h2 className="text-2xl font-bold text-slate-900">Know before you deploy.</h2>
         <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto">
           Stop guessing which model is best for your use case. Evaluate with data, not marketing claims.
         </p>
         <Link
-          href="/dashboard"
+          href={user ? "/dashboard" : "/login"}
           className="mt-6 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
         >
-          Open Dashboard <ArrowRight className="h-4 w-4" />
+          {user ? "Open Dashboard" : "Sign In to Get Started"} <ArrowRight className="h-4 w-4" />
         </Link>
       </section>
 

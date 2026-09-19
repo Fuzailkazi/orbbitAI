@@ -26,16 +26,14 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Protected routes that strictly require authentication (e.g. settings, user profile, running private evals)
-  const isProtectedAction = pathname.startsWith("/settings") || pathname.startsWith("/dashboard/evaluate/new");
-
-  if (isProtectedAction && !user) {
+  // Protect all /dashboard and /settings routes — require sign in
+  if ((pathname.startsWith("/dashboard") || pathname.startsWith("/settings")) && !user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect authenticated users away from login/signup
+  // Redirect already authenticated users away from login/signup to dashboard
   if ((pathname === "/login" || pathname === "/signup") && user) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
