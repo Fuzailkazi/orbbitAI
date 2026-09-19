@@ -79,7 +79,10 @@ export async function syncOpenRouterModels(): Promise<OpenRouterSyncResult> {
     // We store as $/1M tokens
     const pricingInput = item.pricing?.prompt ? parseFloat(item.pricing.prompt) * 1_000_000 : 0;
     const pricingOutput = item.pricing?.completion ? parseFloat(item.pricing.completion) * 1_000_000 : 0;
-    const contextWindow = item.context_length || 8192;
+    const rawContext = item.context_length || 8192;
+    const contextWindow = Math.min(rawContext, 2147483647);
+    const safePriceIn = Number.isFinite(pricingInput) ? Math.max(0, Math.min(999.99, pricingInput)) : 0;
+    const safePriceOut = Number.isFinite(pricingOutput) ? Math.max(0, Math.min(999.99, pricingOutput)) : 0;
 
     const isNew = !existingIdentifiers.has(apiIdentifier);
 
@@ -88,8 +91,8 @@ export async function syncOpenRouterModels(): Promise<OpenRouterSyncResult> {
       vendor,
       category,
       context_window: contextWindow,
-      pricing_input: Math.round(pricingInput * 1000) / 1000,
-      pricing_output: Math.round(pricingOutput * 1000) / 1000,
+      pricing_input: Math.round(safePriceIn * 100) / 100,
+      pricing_output: Math.round(safePriceOut * 100) / 100,
       api_identifier: apiIdentifier,
       description: item.description?.slice(0, 300) || null,
       is_active: true,

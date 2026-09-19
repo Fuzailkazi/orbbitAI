@@ -80,7 +80,7 @@ export class OpenRouterClient {
         const latencyMs = Math.round(endTime - startTime);
 
         const choice = data.choices?.[0];
-        const text = choice?.message?.content || "";
+        const text = choice?.message?.content || choice?.message?.reasoning || "";
         const promptTokens = data.usage?.prompt_tokens ?? 0;
         const completionTokens = data.usage?.completion_tokens ?? 0;
         const totalTokens = data.usage?.total_tokens ?? (promptTokens + completionTokens);
