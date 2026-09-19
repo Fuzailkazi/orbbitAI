@@ -2,7 +2,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { CheckCircle, Clock } from "lucide-react";
+import { CheckCircle, Clock, ExternalLink } from "lucide-react";
 
 export default async function EvaluationsPage() {
   const supabase = await createServerClient();
@@ -39,7 +39,7 @@ export default async function EvaluationsPage() {
                   <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400">CI (95%)</th>
                   <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400">Avg Latency</th>
                   <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400">TPS</th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400">Status</th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -54,7 +54,10 @@ export default async function EvaluationsPage() {
                         </Link>
                         <p className="text-[10px] text-slate-400">{model?.vendor}</p>
                       </td>
-                      <td className="px-5 py-3 text-sm text-slate-600">{bench?.name ?? "Unknown"}</td>
+                      <td className="px-5 py-3">
+                        <span className="text-sm text-slate-600">{bench?.name ?? "Unknown"}</span>
+                        <p className="text-[10px] capitalize text-slate-400">{bench?.category}</p>
+                      </td>
                       <td className="px-5 py-3 text-right font-mono text-sm font-semibold text-slate-900">
                         {ev.accuracy?.toFixed(1)}%
                       </td>
@@ -66,9 +69,12 @@ export default async function EvaluationsPage() {
                       </td>
                       <td className="px-5 py-3 text-right font-mono text-xs text-slate-500">{ev.tokens_per_second}</td>
                       <td className="px-5 py-3 text-right">
-                        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[10px] text-emerald-600">
-                          <CheckCircle className="mr-0.5 h-2.5 w-2.5" /> Completed
-                        </Badge>
+                        <Link
+                          href={`/dashboard/evaluations/${ev.id}`}
+                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50 hover:text-indigo-600 transition-colors"
+                        >
+                          View Details <ExternalLink className="h-3 w-3 text-slate-400" />
+                        </Link>
                       </td>
                     </tr>
                   );
