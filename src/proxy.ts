@@ -21,18 +21,22 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Refresh the session (important for server components)
+  // Refresh session
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Protect /dashboard routes — redirect to /login if not authenticated
-  if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
+  const pathname = request.nextUrl.pathname;
+
+  // Protected routes that strictly require authentication (e.g. settings, user profile, running private evals)
+  const isProtectedAction = pathname.startsWith("/settings") || pathname.startsWith("/dashboard/evaluate/new");
+
+  if (isProtectedAction && !user) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", request.nextUrl.pathname);
+    loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // Redirect authenticated users away from login/signup
-  if ((request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup") && user) {
+  if ((pathname === "/login" || pathname === "/signup") && user) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
