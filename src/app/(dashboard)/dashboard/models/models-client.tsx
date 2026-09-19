@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Search, ChevronLeft, ChevronRight, ArrowUpDown, Layers,
+  Search, ChevronLeft, ChevronRight, ArrowUpDown, Layers, Star, RefreshCw, Loader2
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useFavorites } from "@/hooks/useFavorites";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -47,6 +49,29 @@ export function ModelsClient({ models }: { models: Model[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
   const [page, setPage] = useState(1);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const { favorites, toggleFavorite, isFavorite } = useFavorites();
+  const router = useRouter();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  async function handleSyncModels() {
+    setIsSyncing(true);
+    setSyncStatus(null);
+    try {
+      const res = await fetch("/api/models/sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Sync failed");
+      }
+      setSyncStatus(`Synced ${data.data.totalDiscovered} models (${data.data.newModelsAdded} newly added)`);
+      router.refresh();
+    } catch (err: any) {
+      setSyncStatus(err.message || "Failed to sync models.");
+    } finally {
+      setIsSyncing(false);
+    }
+  }
 
   const vendors = getUniqueVendors(models);
 
@@ -58,7 +83,8 @@ export function ModelsClient({ models }: { models: Model[] }) {
       m.api_identifier.toLowerCase().includes(search.toLowerCase());
     const matchCategory = category === "all" || m.category === category;
     const matchVendor = vendor === "all" || m.vendor === vendor;
-    return matchSearch && matchCategory && matchVendor;
+    const matchFavorite = !favoritesOnly || isFavorite(m.id);
+    return matchSearch && matchCategory && matchVendor && matchFavorite;
   });
 
   // Sort
@@ -105,9 +131,27 @@ export function ModelsClient({ models }: { models: Model[] }) {
             Browse {models.length} AI models across {vendors.length} vendors.
           </p>
         </div>
-        <Badge variant="outline" className="border-slate-200 text-slate-500">
-          <Layers className="mr-1 h-3 w-3" /> {filtered.length} results
-        </Badge>
+        <div className="flex items-center gap-2">
+          {syncStatus && (
+            <span className="text-xs text-indigo-600 font-medium">{syncStatus}</span>
+          )}
+          <button
+            type="button"
+            onClick={handleSyncModels}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-50 transition-colors"
+          >
+            {isSyncing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            )}
+            Sync OpenRouter ({models.length})
+          </button>
+          <Badge variant="outline" className="border-slate-200 text-slate-500">
+            <Layers className="mr-1 h-3 w-3" /> {filtered.length} results
+          </Badge>
+        </div>
       </div>
 
       {/* Filters */}
@@ -164,6 +208,7 @@ export function ModelsClient({ models }: { models: Model[] }) {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100">
+                  <th className="w-10 px-3 py-3 text-center"></th>
                   <th className="px-5 py-3 text-left"><SortHeader label="Model" sortField="name" /></th>
                   <th className="px-5 py-3 text-left"><SortHeader label="Vendor" sortField="vendor" /></th>
                   <th className="px-5 py-3 text-left">
@@ -183,6 +228,16 @@ export function ModelsClient({ models }: { models: Model[] }) {
                     key={model.id}
                     className="transition-colors hover:bg-slate-50"
                   >
+                    <td className="px-3 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleFavorite(model.id)}
+                        title={isFavorite(model.id) ? "Remove from favorites" : "Add to favorites"}
+                        className="p-1 text-slate-300 hover:text-amber-500 transition-colors"
+                      >
+                        <Star className={`h-4 w-4 ${isFavorite(model.id) ? "fill-amber-400 text-amber-500" : ""}`} />
+                      </button>
+                    </td>
                     <td className="px-5 py-3">
                       <Link
                         href={`/dashboard/models/${model.id}`}

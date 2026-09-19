@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, SlidersHorizontal, Info, BarChart3 } from "lucide-react";
+import { Trophy, SlidersHorizontal, Info, BarChart3, Download, Plus, BookmarkCheck } from "lucide-react";
 import { TopModelsChart } from "@/components/charts/top-models-chart";
 
 interface EvalRow {
@@ -90,6 +90,53 @@ export function LeaderboardClient({
     }))
     .sort((a, b) => b.score - a.score);
 
+  const [customPresets, setCustomPresets] = useState<Array<{ label: string; quality: number; cost: number; speed: number }>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("orbbit_value_presets");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
+
+  function saveCustomPreset() {
+    const name = prompt("Enter a name for this custom weight profile (e.g. My Fast Coding Weight):");
+    if (!name || !name.trim()) return;
+    const newPreset = { label: name.trim(), quality: weights.quality, cost: weights.cost, speed: weights.speed };
+    const updated = [...customPresets, newPreset];
+    setCustomPresets(updated);
+    try {
+      localStorage.setItem("orbbit_value_presets", JSON.stringify(updated));
+    } catch {}
+  }
+
+  function exportLeaderboardCsv() {
+    const headers = ["Rank", "Model", "Vendor", "Value Score", "Accuracy (%)", "CI Lower (%)", "CI Upper (%)", "Avg Latency (ms)", "TPS", "Input $/1M", "Benchmark"];
+    const rows = ranked.map((r, i) => [
+      i + 1,
+      `"${r.ev.models.name}"`,
+      `"${r.ev.models.vendor}"`,
+      r.score.toFixed(1),
+      r.ev.accuracy?.toFixed(1) || "0",
+      r.ev.accuracy_ci_lower?.toFixed(1) || "0",
+      r.ev.accuracy_ci_upper?.toFixed(1) || "0",
+      r.ev.avg_latency_ms || "0",
+      r.ev.tokens_per_second || "0",
+      r.ev.models.pricing_input,
+      `"${r.ev.benchmarks.name}"`
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `orbbit_leaderboard_${selectedBenchmark}_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   const benchmarkNames = [...new Set(evaluations.map((e) => e.benchmarks.name))].sort();
 
   return (
@@ -126,19 +173,37 @@ export function LeaderboardClient({
 
       {/* Value Score Controls */}
       <Card className="border-slate-200 bg-white shadow-sm">
-        <CardHeader className="flex flex-row items-center gap-2 pb-3">
-          <SlidersHorizontal className="h-4 w-4 text-slate-400" />
-          <CardTitle className="text-sm font-semibold text-slate-900">Value Score Weights</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 text-slate-400" />
+            <CardTitle className="text-sm font-semibold text-slate-900">Value Score Weights</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={saveCustomPreset}
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-xs hover:bg-slate-50 transition-colors"
+            >
+              <Plus className="h-3 w-3" /> Save Preset
+            </button>
+            <button
+              type="button"
+              onClick={exportLeaderboardCsv}
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-xs hover:bg-slate-50 transition-colors"
+            >
+              <Download className="h-3 w-3" /> Export CSV
+            </button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            {presets.map((p) => (
+          <div className="flex flex-wrap gap-2">
+            {[...presets, ...customPresets].map((p) => (
               <button
                 key={p.label}
                 onClick={() => setWeights({ quality: p.quality, cost: p.cost, speed: p.speed })}
                 className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  weights.quality === p.quality && weights.cost === p.cost
-                    ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                  Math.abs(weights.quality - p.quality) < 0.05 && Math.abs(weights.cost - p.cost) < 0.05
+                    ? "border-indigo-200 bg-indigo-50 text-indigo-700 font-semibold"
                     : "border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >

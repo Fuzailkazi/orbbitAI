@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Model } from "@/types/database";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GitCompareArrows, Check } from "lucide-react";
+import { GitCompareArrows, Check, Download, Share2, Copy } from "lucide-react";
 import { BenchmarkRadarChart } from "@/components/charts/benchmark-radar-chart";
 
 interface EvalData {
@@ -38,12 +38,68 @@ export function CompareClient({ models, evaluations }: { models: Model[]; evalua
   const eB = evaluations.filter((e) => e.model_id === idB);
   const namesA = new Set(eA.map((e) => (e.benchmarks as unknown as {name:string})?.name).filter(Boolean));
   const shared = [...namesA].filter((n) => eB.some((e) => (e.benchmarks as unknown as {name:string})?.name === n));
+    const [copied, setCopied] = useState(false);
+
+  function exportComparisonJson() {
+    if (!a || !b) return;
+    const comparisonData = {
+      modelA: { name: a.name, vendor: a.vendor, context: a.context_window, pricingInput: a.pricing_input, pricingOutput: a.pricing_output },
+      modelB: { name: b.name, vendor: b.vendor, context: b.context_window, pricingInput: b.pricing_input, pricingOutput: b.pricing_output },
+      benchmarks: shared.map((n) => {
+        const evA = eA.find((e) => (e.benchmarks as any)?.name === n);
+        const evB = eB.find((e) => (e.benchmarks as any)?.name === n);
+        return {
+          benchmark: n,
+          modelAAccuracy: evA?.accuracy,
+          modelBAccuracy: evB?.accuracy,
+          modelALatency: evA?.avg_latency_ms,
+          modelBLatency: evB?.avg_latency_ms
+        };
+      })
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(comparisonData, null, 2));
+    const link = document.createElement("a");
+    link.setAttribute("href", dataStr);
+    link.setAttribute("download", `orbbit_comparison_${a.name}_${b.name}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function copyShareUrl() {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Compare Models</h1>
-        <p className="mt-1 text-sm text-slate-500">Select two models to compare side-by-side.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Compare Models</h1>
+          <p className="mt-1 text-sm text-slate-500">Select two models to compare side-by-side.</p>
+        </div>
+        {a && b && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={copyShareUrl}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition-colors"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-slate-500" />}
+              {copied ? "Copied Link!" : "Share"}
+            </button>
+            <button
+              onClick={exportComparisonJson}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5 text-slate-500" /> Export JSON
+            </button>
+          </div>
+        )}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {([["A",idA,idB,setIdA],["B",idB,idA,setIdB]] as const).map(([label,val,other,set]) => (

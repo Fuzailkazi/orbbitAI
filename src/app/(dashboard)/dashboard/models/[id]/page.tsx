@@ -8,6 +8,7 @@ import {
   ArrowLeft, Globe, Cpu, DollarSign, Tag, Calendar, Zap, BarChart3, TrendingUp,
 } from "lucide-react";
 import { ModelBenchmarkChart } from "./model-benchmark-chart";
+import { ModelFavoriteButton } from "./model-favorite-button";
 
 const categoryColors: Record<string, string> = {
   chat: "bg-indigo-50 text-indigo-600",
@@ -78,8 +79,9 @@ export default async function ModelDetailPage({
           <p className="mt-1 font-mono text-sm text-slate-400">{m.api_identifier}</p>
         </div>
         <div className="flex gap-2">
+          <ModelFavoriteButton modelId={m.id} />
           <Link href={`/dashboard/compare?model=${m.id}`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50">Compare</Link>
-          <Link href={`/dashboard/evaluations?model=${m.id}`} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"><Zap className="h-3.5 w-3.5" /> Run Evaluation</Link>
+          <Link href={`/dashboard/evaluate`} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"><Zap className="h-3.5 w-3.5" /> Run Evaluation</Link>
         </div>
       </div>
 
