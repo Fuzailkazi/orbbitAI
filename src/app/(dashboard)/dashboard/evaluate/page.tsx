@@ -13,11 +13,16 @@ export default async function EvaluatePage() {
     .order("vendor", { ascending: true })
     .order("name", { ascending: true });
 
-  // Fetch benchmarks
+  // Fetch benchmarks and question counts
   const { data: benchmarks } = await supabase
     .from("benchmarks")
-    .select("*")
+    .select("*, benchmark_questions(count)")
     .order("name", { ascending: true });
+
+  const activeBenchmarks = (benchmarks ?? []).map((b: any) => ({
+    ...b,
+    available_questions: b.benchmark_questions?.[0]?.count ?? 0,
+  }));
 
   return (
     <div className="space-y-6">
@@ -37,7 +42,7 @@ export default async function EvaluatePage() {
 
       <EvaluateClient
         models={(models ?? []) as Model[]}
-        benchmarks={(benchmarks ?? []) as Benchmark[]}
+        benchmarks={activeBenchmarks as any[]}
       />
     </div>
   );

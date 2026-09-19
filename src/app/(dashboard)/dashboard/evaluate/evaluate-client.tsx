@@ -104,9 +104,9 @@ export function EvaluateClient({
                     disabled={isRunning}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   >
-                    {benchmarks.map((b) => (
+                    {benchmarks.map((b: any) => (
                       <option key={b.id} value={b.id}>
-                        {b.name} ({b.category}) — {b.scoring_method.replace("_", " ")}
+                        {b.name} ({b.category}) • {b.available_questions ? `${b.available_questions} questions available` : "Active"}
                       </option>
                     ))}
                   </select>
