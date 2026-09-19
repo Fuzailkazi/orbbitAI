@@ -23,8 +23,9 @@ const overviewNav = [
 ];
 
 const evalNav = [
+  { label: "Run Evaluation", href: "/dashboard/evaluate", icon: Play },
   { label: "Spaces", href: "/dashboard/spaces", icon: LayoutGrid },
-  { label: "Evaluations", href: "/dashboard/evaluations", icon: Play },
+  { label: "Evaluations", href: "/dashboard/evaluations", icon: Trophy },
 ];
 
 function NavGroup({ label, items, pathname }: { label: string; items: typeof overviewNav; pathname: string }) {
