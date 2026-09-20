@@ -49,73 +49,73 @@
 }
 
 :root {
-  /* Swiss Industrial Precision Palette (Direction B) */
-  --background: #FBFBFA;             /* Warm alabaster/bone paper canvas */
-  --foreground: #121316;             /* Deep off-black ink */
-  --card: #FFFFFF;                   /* Pure white inner surface */
-  --card-foreground: #121316;
+  /* Precision Utility Palette — Clean, data-focused, single blue accent */
+  --background: #FAFAFA;
+  --foreground: #171717;
+  --card: #FFFFFF;
+  --card-foreground: #171717;
   --popover: #FFFFFF;
-  --popover-foreground: #121316;
-  --primary: #18181B;                /* Solid tactile charcoal */
+  --popover-foreground: #171717;
+  --primary: #171717;
   --primary-foreground: #FFFFFF;
-  --secondary: #F4F4F5;              /* Clean stone secondary */
-  --secondary-foreground: #27272A;
-  --muted: #F4F4F5;
-  --muted-foreground: #71717A;       /* Refined zinc-500 */
-  --accent: #F4F4F5;
-  --accent-foreground: #18181B;
+  --secondary: #F5F5F5;
+  --secondary-foreground: #262626;
+  --muted: #F5F5F5;
+  --muted-foreground: #737373;
+  --accent: #F5F5F5;
+  --accent-foreground: #171717;
   --destructive: #DC2626;
-  --border: rgba(0, 0, 0, 0.08);    /* Crisp surgical hairline */
-  --input: rgba(0, 0, 0, 0.09);
-  --ring: #18181B;
-  --chart-1: #18181B;                /* Monochrome lead */
-  --chart-2: #059669;                /* Emerald indicator */
-  --chart-3: #EA580C;                /* Signal Orange */
-  --chart-4: #2563EB;                /* Klein Blue */
-  --chart-5: #71717A;                /* Neutral slate */
-  --radius: 0.625rem;                /* Precise 10px crisp curves */
-  --sidebar: #FBFBFA;
-  --sidebar-foreground: #27272A;
-  --sidebar-primary: #18181B;
+  --border: #E5E5E5;
+  --input: #E5E5E5;
+  --ring: #2563EB;
+  --chart-1: #2563EB;
+  --chart-2: #059669;
+  --chart-3: #EA580C;
+  --chart-4: #7C3AED;
+  --chart-5: #737373;
+  --radius: 0.625rem;
+  --sidebar: #FAFAFA;
+  --sidebar-foreground: #262626;
+  --sidebar-primary: #171717;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #EFEFEF;
-  --sidebar-accent-foreground: #18181B;
-  --sidebar-border: rgba(0, 0, 0, 0.07);
-  --sidebar-ring: #18181B;
+  --sidebar-accent: #F5F5F5;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #E5E5E5;
+  --sidebar-ring: #2563EB;
 }
 
 .dark {
-  --background: #0C0D10;
-  --foreground: #F4F4F5;
-  --card: #141519;
-  --card-foreground: #F4F4F5;
-  --popover: #18191E;
-  --popover-foreground: #F4F4F5;
-  --primary: #F4F4F5;
-  --primary-foreground: #0C0D10;
-  --secondary: #1F2026;
-  --secondary-foreground: #F4F4F5;
-  --muted: #1F2026;
-  --muted-foreground: #A1A1AA;
-  --accent: #262830;
-  --accent-foreground: #F4F4F5;
+  --background: #0A0A0A;
+  --foreground: #FAFAFA;
+  --card: #141414;
+  --card-foreground: #FAFAFA;
+  --popover: #141414;
+  --popover-foreground: #FAFAFA;
+  --primary: #FAFAFA;
+  --primary-foreground: #0A0A0A;
+  --secondary: #1C1C1C;
+  --secondary-foreground: #FAFAFA;
+  --muted: #1C1C1C;
+  --muted-foreground: #A3A3A3;
+  --accent: #1C1C1C;
+  --accent-foreground: #FAFAFA;
   --destructive: #EF4444;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #F4F4F5;
-  --chart-1: #F4F4F5;
+  --border: #262626;
+  --input: #262626;
+  --ring: #3B82F6;
+  --chart-1: #3B82F6;
   --chart-2: #10B981;
   --chart-3: #F97316;
-  --chart-4: #3B82F6;
-  --chart-5: #A1A1AA;
-  --sidebar: #0C0D10;
-  --sidebar-foreground: #F4F4F5;
-  --sidebar-primary: #F4F4F5;
-  --sidebar-primary-foreground: #0C0D10;
-  --sidebar-accent: #1F2026;
-  --sidebar-accent-foreground: #F4F4F5;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #F4F4F5;
+  --chart-4: #8B5CF6;
+  --chart-5: #A3A3A3;
+  --sidebar: #0A0A0A;
+  --sidebar-foreground: #FAFAFA;
+  --sidebar-primary: #FAFAFA;
+  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-accent: #1C1C1C;
+  --sidebar-accent-foreground: #FAFAFA;
+  --sidebar-border: #262626;
+  --sidebar-ring: #3B82F6;
 }
 
 @layer base {
@@ -123,7 +123,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-zinc-900 selection:text-white;
+    @apply bg-background text-foreground antialiased;
   }
   html {
     @apply font-sans scroll-smooth;
@@ -145,32 +145,8 @@
       transition-duration: 0.01ms !important;
     }
   }
+  /* Tabular nums for metrics and data displays */
   .font-mono, [data-metric] {
     font-variant-numeric: tabular-nums;
   }
-}
-
-/* Swiss Industrial Custom Utility Classes */
-.swiss-hairline {
-  border-width: 1px;
-  border-color: rgba(0, 0, 0, 0.07);
-}
-
-.swiss-dot-grid {
-  background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 0);
-  background-size: 24px 24px;
-}
-
-.double-bezel {
-  background-color: #F4F4F2;
-  border: 1px solid rgba(0, 0, 0, 0.07);
-  padding: 0.375rem;
-  border-radius: 1rem;
-}
-
-.double-bezel-inner {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: calc(1rem - 0.375rem);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }

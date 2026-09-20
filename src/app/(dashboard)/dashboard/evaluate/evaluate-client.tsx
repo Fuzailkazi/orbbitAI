@@ -173,21 +173,20 @@ export function EvaluateClient({
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Configuration Column */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="double-bezel">
-            <div className="double-bezel-inner p-6">
-              <div className="flex items-center justify-between border-b border-black/[0.06] pb-4 mb-6">
-                <div>
-                  <h3 className="text-sm font-semibold tracking-tight text-zinc-950">
-                    Console Test Configuration
-                  </h3>
-                  <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
-                    SELECT MODEL, SUITE & SAMPLE RATIO
-                  </p>
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-black/[0.08] bg-zinc-50 text-zinc-600">
-                  READY
-                </span>
+          <div className="bg-card border border-border rounded-xl p-6 shadow-xs">
+            <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
+              <div>
+                <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                  Evaluation Configuration
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Select model, benchmark suite, and sample size
+                </p>
               </div>
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-md border border-border bg-muted text-muted-foreground">
+                Ready
+              </span>
+            </div>
 
               <form onSubmit={handleStartEvaluation} className="space-y-6">
                 {/* Step 1: Model Selection */}
@@ -313,7 +312,6 @@ export function EvaluateClient({
                 </button>
               </form>
             </div>
-          </div>
 
           {/* Live Execution Terminal - Matte CRT Instrument Finish */}
           {(isRunning || logs.length > 0) && (
@@ -377,62 +375,59 @@ export function EvaluateClient({
         {/* Details & Telemetry Preview */}
         <div className="space-y-5">
           {/* Run Specs Card */}
-          <div className="double-bezel">
-            <div className="double-bezel-inner p-5 space-y-4">
-              <div className="border-b border-black/[0.06] pb-3">
-                <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-zinc-400">
-                  RUN SPECIFICATIONS
-                </h4>
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4 shadow-xs">
+            <div className="border-b border-border pb-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Run Specifications
+              </h4>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Model:</span>
+                <span className="font-semibold text-foreground truncate max-w-[170px]">{selectedModel?.name}</span>
               </div>
-              <div className="space-y-3 text-xs font-mono">
-                <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">MODEL:</span>
-                  <span className="font-semibold text-zinc-950 truncate max-w-[170px]">{selectedModel?.name}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">PROVIDER:</span>
-                  <span className="font-medium text-zinc-800">{selectedModel?.vendor}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">API ROUTE:</span>
-                  <span className="text-[11px] text-zinc-600 truncate max-w-[150px]">
-                    {selectedModel?.api_identifier}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">SUITE:</span>
-                  <span className="font-medium text-zinc-800 truncate max-w-[160px]">{selectedBenchmark?.name}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">SCORER:</span>
-                  <span className="rounded bg-zinc-100 px-2 py-0.5 text-[10px] font-mono font-semibold text-zinc-800 border border-zinc-200">
-                    {selectedBenchmark?.scoring_method}
-                  </span>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Provider:</span>
+                <span className="font-medium text-foreground">{selectedModel?.vendor}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">API Route:</span>
+                <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                  {selectedModel?.api_identifier}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Suite:</span>
+                <span className="font-medium text-foreground truncate max-w-[160px]">{selectedBenchmark?.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Scorer:</span>
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground border border-border">
+                  {selectedBenchmark?.scoring_method}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Real-time Result Card */}
           {runResult && (
-            <div className="double-bezel">
-              <div className="double-bezel-inner p-5 space-y-4 animate-in fade-in duration-300">
-                <div className="flex items-center justify-between border-b border-black/[0.06] pb-3">
-                  <span className="flex items-center gap-1.5 text-xs font-mono font-semibold text-zinc-950">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    RUN COMPLETE
-                  </span>
-                  <span className="rounded bg-zinc-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-zinc-800 border border-zinc-200">
-                    {runResult.questionsCorrect} / {runResult.questionsEvaluated} PASS
+            <div className="bg-card border border-border rounded-xl p-5 space-y-4 shadow-xs animate-in fade-in duration-300">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  Run Complete
+                </span>
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground border border-border">
+                  {runResult.questionsCorrect} / {runResult.questionsEvaluated} pass
+                </span>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs text-muted-foreground">Measured Accuracy:</span>
+                  <span className="font-mono text-2xl font-bold text-foreground">
+                    {runResult.accuracy}%
                   </span>
                 </div>
-                <div className="space-y-3 font-mono">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-xs text-zinc-500">MEASURED ACCURACY:</span>
-                    <span className="text-2xl font-bold text-zinc-950">
-                      {runResult.accuracy}%
-                    </span>
-                  </div>
                   <div className="flex justify-between items-center text-xs text-zinc-600">
                     <span>95% WILSON CI:</span>
                     <span className="font-semibold text-zinc-900">
@@ -463,7 +458,6 @@ export function EvaluateClient({
                   </div>
                 </div>
               </div>
-            </div>
           )}
         </div>
       </div>
