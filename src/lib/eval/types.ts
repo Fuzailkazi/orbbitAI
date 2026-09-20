@@ -7,5 +7,5 @@ export interface ScoringResult {
 
 export interface Scorer {
   name: string;
-  score(response: string, expected: string, metadata?: any): ScoringResult;
+  score(response: string, expected: string, metadata?: any): ScoringResult | Promise<ScoringResult>;
 }

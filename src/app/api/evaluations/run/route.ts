@@ -4,7 +4,7 @@ import { runEvaluation } from "@/lib/eval/runner";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { modelId, benchmarkId, limitQuestions } = body;
+    const { modelId, benchmarkId, limitQuestions, stream = true } = body;
 
     if (!modelId || !benchmarkId) {
       return NextResponse.json(
@@ -13,10 +13,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const questionCount = limitQuestions ? Number(limitQuestions) : 10;
+
+    // Handle Streaming Response (Server-Sent Events)
+    if (stream) {
+      const encoder = new TextEncoder();
+      const customStream = new ReadableStream({
+        async start(controller) {
+          try {
+            await runEvaluation({
+              modelId,
+              benchmarkId,
+              limitQuestions: questionCount,
+              onProgress: (event) => {
+                const chunk = `data: ${JSON.stringify(event)}\n\n`;
+                controller.enqueue(encoder.encode(chunk));
+              },
+            });
+          } catch (err: any) {
+            const errChunk = `data: ${JSON.stringify({
+              type: "error",
+              message: err?.message || "Execution failed",
+            })}\n\n`;
+            controller.enqueue(encoder.encode(errChunk));
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(customStream, {
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
+    // Non-streaming fallback
     const result = await runEvaluation({
       modelId,
       benchmarkId,
-      limitQuestions: limitQuestions ? Number(limitQuestions) : 10,
+      limitQuestions: questionCount,
     });
 
     return NextResponse.json({

@@ -8,10 +8,45 @@ import {
 } from "./statistics";
 import type { Model, Benchmark, BenchmarkQuestion } from "@/types/database";
 
+export type EvaluationProgressEvent =
+  | {
+      type: "init";
+      evaluationId: string;
+      modelName: string;
+      benchmarkName: string;
+      totalQuestions: number;
+    }
+  | {
+      type: "question_start";
+      index: number;
+      total: number;
+      promptSnippet: string;
+    }
+  | {
+      type: "question_complete";
+      index: number;
+      total: number;
+      isCorrect: boolean;
+      score: number;
+      latencyMs: number;
+      tokens: number;
+      modelResponseSnippet: string;
+      costUsd: number;
+    }
+  | {
+      type: "eval_complete";
+      output: EvaluationRunOutput;
+    }
+  | {
+      type: "error";
+      message: string;
+    };
+
 export interface EvaluationRunnerOptions {
   modelId: string;
   benchmarkId: string;
   limitQuestions?: number;
+  onProgress?: (event: EvaluationProgressEvent) => void | Promise<void>;
 }
 
 export interface EvaluationRunOutput {
@@ -34,6 +69,7 @@ export async function runEvaluation({
   modelId,
   benchmarkId,
   limitQuestions = 25,
+  onProgress,
 }: EvaluationRunnerOptions): Promise<EvaluationRunOutput> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -102,6 +138,15 @@ export async function runEvaluation({
 
   const evaluationId = evalRecord.id;
 
+  // Emit initialization event
+  await onProgress?.({
+    type: "init",
+    evaluationId,
+    modelName: model.name,
+    benchmarkName: benchmark.name,
+    totalQuestions: questions.length,
+  });
+
   // 4. Initialize Client & Scorer
   const openRouter = new OpenRouterClient();
   const scorer = getScorer(benchmark.scoring_method);
@@ -118,6 +163,13 @@ export async function runEvaluation({
   // 5. Execute Questions Sequentially (with small delay to prevent rate-limits)
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i] as BenchmarkQuestion;
+
+    await onProgress?.({
+      type: "question_start",
+      index: i + 1,
+      total: questions.length,
+      promptSnippet: q.prompt.slice(0, 100).replace(/\n/g, " "),
+    });
 
     try {
       const response = await openRouter.createChatCompletion(
@@ -140,7 +192,7 @@ export async function runEvaluation({
         pricing
       );
 
-      const scoreResult = scorer.score(response.text, q.expected_answer, q.metadata);
+      const scoreResult = await scorer.score(response.text, q.expected_answer, q.metadata);
 
       if (scoreResult.isCorrect) {
         correctCount++;
@@ -163,6 +215,18 @@ export async function runEvaluation({
         judge_reasoning: scoreResult.reasoning,
       });
 
+      await onProgress?.({
+        type: "question_complete",
+        index: i + 1,
+        total: questions.length,
+        isCorrect: scoreResult.isCorrect,
+        score: scoreResult.score,
+        latencyMs: response.latencyMs,
+        tokens: response.totalTokens,
+        modelResponseSnippet: response.text.slice(0, 80).replace(/\n/g, " "),
+        costUsd: response.costUsd,
+      });
+
       // Small delay between questions
       if (i < questions.length - 1) {
         await new Promise((res) => setTimeout(res, 200));
@@ -179,6 +243,18 @@ export async function runEvaluation({
         tokens_used: 0,
         time_to_first_token_ms: null,
         judge_reasoning: `Model API call failed: ${callErr?.message}`,
+      });
+
+      await onProgress?.({
+        type: "question_complete",
+        index: i + 1,
+        total: questions.length,
+        isCorrect: false,
+        score: 0.0,
+        latencyMs: 0,
+        tokens: 0,
+        modelResponseSnippet: `[Failed: ${callErr?.message || "Error"}]`,
+        costUsd: 0,
       });
     }
   }
@@ -230,7 +306,7 @@ export async function runEvaluation({
     })
     .eq("id", evaluationId);
 
-  return {
+  const finalOutput: EvaluationRunOutput = {
     evaluationId,
     status: "completed",
     accuracy: Math.round(accuracy * 10) / 10,
@@ -245,4 +321,11 @@ export async function runEvaluation({
     questionsEvaluated: evaluatedCount,
     questionsCorrect: correctCount,
   };
+
+  await onProgress?.({
+    type: "eval_complete",
+    output: finalOutput,
+  });
+
+  return finalOutput;
 }

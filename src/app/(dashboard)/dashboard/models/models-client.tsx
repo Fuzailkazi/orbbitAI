@@ -14,8 +14,9 @@ import { useFavorites } from "@/hooks/useFavorites";
 
 const ITEMS_PER_PAGE = 20;
 
-const categories: { value: ModelCategory | "all"; label: string }[] = [
-  { value: "all", label: "All" },
+const categories: { value: ModelCategory | "all" | "frontier"; label: string }[] = [
+  { value: "all", label: "All Models" },
+  { value: "frontier", label: "★ Frontier Flagships" },
   { value: "chat", label: "Chat" },
   { value: "reasoning", label: "Reasoning" },
   { value: "code", label: "Code" },
@@ -26,6 +27,7 @@ const categories: { value: ModelCategory | "all"; label: string }[] = [
 ];
 
 const categoryColors: Record<string, string> = {
+  frontier: "bg-orange-50 text-orange-700 border-orange-200",
   chat: "bg-indigo-50 text-indigo-600",
   reasoning: "bg-violet-50 text-violet-600",
   code: "bg-emerald-50 text-emerald-600",
@@ -42,9 +44,24 @@ function getUniqueVendors(models: Model[]): string[] {
   return Array.from(vendors).sort();
 }
 
+export function isFrontierModel(m: Model): boolean {
+  const s = (m.api_identifier + " " + m.name).toLowerCase();
+  return (
+    s.includes("astra") ||
+    s.includes("fable") ||
+    s.includes("3.8") ||
+    s.includes("v4.1") ||
+    s.includes("o1") ||
+    s.includes("o3") ||
+    s.includes("r1") ||
+    s.includes("opus-4") ||
+    s.includes("sonnet-4")
+  );
+}
+
 export function ModelsClient({ models }: { models: Model[] }) {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<ModelCategory | "all">("all");
+  const [category, setCategory] = useState<ModelCategory | "all" | "frontier">("all");
   const [vendor, setVendor] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
@@ -81,7 +98,12 @@ export function ModelsClient({ models }: { models: Model[] }) {
       m.name.toLowerCase().includes(search.toLowerCase()) ||
       m.vendor.toLowerCase().includes(search.toLowerCase()) ||
       m.api_identifier.toLowerCase().includes(search.toLowerCase());
-    const matchCategory = category === "all" || m.category === category;
+    const matchCategory =
+      category === "all"
+        ? true
+        : category === "frontier"
+        ? isFrontierModel(m)
+        : m.category === category;
     const matchVendor = vendor === "all" || m.vendor === vendor;
     const matchFavorite = !favoritesOnly || isFavorite(m.id);
     return matchSearch && matchCategory && matchVendor && matchFavorite;
@@ -151,6 +173,113 @@ export function ModelsClient({ models }: { models: Model[] }) {
           <Badge variant="outline" className="border-slate-200 text-slate-500">
             <Layers className="mr-1 h-3 w-3" /> {filtered.length} results
           </Badge>
+        </div>
+      </div>
+
+      {/* Frontier Flagships Spotlight Shelf */}
+      <div className="rounded-2xl border border-black/[0.08] bg-[#FBFBFA] p-5 shadow-2xs space-y-3 font-mono">
+        <div className="flex items-center justify-between border-b border-black/[0.05] pb-2.5">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-orange-600 animate-pulse" />
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-950">
+              FRONTIER FLAGSHIPS SPOTLIGHT
+            </span>
+            <span className="text-[10px] text-zinc-400">•</span>
+            <span className="text-[10px] text-zinc-500">Live on OpenRouter API</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setCategory("frontier"); setSearch(""); setPage(1); }}
+            className="text-xs font-bold text-orange-700 hover:underline"
+          >
+            Filter All Frontier Models ({models.filter(isFrontierModel).length}) →
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {[
+            {
+              name: "OpenAI: GPT-6 Astra",
+              id: "openai/gpt-6-astra",
+              vendor: "OpenAI",
+              spec: "1.05M Ctx • $10/M",
+              badge: "FLAGSHIP #1",
+              border: "border-zinc-900/30",
+              dot: "bg-zinc-950",
+            },
+            {
+              name: "Anthropic: Claude Fable 5.1",
+              id: "anthropic/claude-fable-5.1",
+              vendor: "Anthropic",
+              spec: "1.00M Ctx • $10/M",
+              badge: "REASONING SOTA",
+              border: "border-orange-300",
+              dot: "bg-orange-600",
+            },
+            {
+              name: "DeepSeek: V4.1 Flash",
+              id: "deepseek/deepseek-v4.1-flash",
+              vendor: "DeepSeek",
+              spec: "1.05M Ctx • $0.15/M",
+              badge: "SPARSE MOE",
+              border: "border-indigo-300",
+              dot: "bg-indigo-600",
+            },
+            {
+              name: "Google: Gemini 3.8 Flash",
+              id: "google/gemini-3.8-flash",
+              vendor: "Google",
+              spec: "1.05M Ctx • $0.75/M",
+              badge: "220 TPS SPEED",
+              border: "border-blue-300",
+              dot: "bg-blue-600",
+            },
+            {
+              name: "Qwen: Qwen3.8 Flash",
+              id: "qwen/qwen3.8-flash",
+              vendor: "Alibaba",
+              spec: "1.00M Ctx • $0.15/M",
+              badge: "REASONING AGENT",
+              border: "border-teal-300",
+              dot: "bg-teal-600",
+            },
+          ].map((f) => {
+            const mMatch = models.find((m) => m.api_identifier === f.id);
+            return (
+              <div
+                key={f.id}
+                onClick={() => {
+                  if (mMatch) {
+                    setSearch(f.name.split(":")[1]?.trim() || f.name);
+                    setPage(1);
+                  }
+                }}
+                className={`rounded-xl border ${f.border} bg-white p-3 hover:shadow-2xs transition-all cursor-pointer group`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] uppercase tracking-wider font-bold text-zinc-500">
+                    {f.badge}
+                  </span>
+                  <span className={`h-1.5 w-1.5 rounded-full ${f.dot}`} />
+                </div>
+                <p className="text-xs font-bold text-zinc-950 truncate group-hover:text-orange-600 transition-colors">
+                  {f.name}
+                </p>
+                <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-400 border-t border-black/[0.04] pt-1.5">
+                  <span className="truncate">{f.spec}</span>
+                  {mMatch && (
+                    <Link
+                      href={`/dashboard/models/${mMatch.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-zinc-900 font-bold hover:underline ml-1"
+                    >
+                      View →
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

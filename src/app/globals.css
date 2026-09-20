@@ -49,74 +49,73 @@
 }
 
 :root {
-  /* Orbbit light theme — clean enterprise */
-  --background: #F8FAFC;             /* slate-50: page bg */
-  --foreground: #0F172A;             /* slate-900: primary text */
-  --card: #FFFFFF;                   /* white cards */
-  --card-foreground: #0F172A;
+  /* Swiss Industrial Precision Palette (Direction B) */
+  --background: #FBFBFA;             /* Warm alabaster/bone paper canvas */
+  --foreground: #121316;             /* Deep off-black ink */
+  --card: #FFFFFF;                   /* Pure white inner surface */
+  --card-foreground: #121316;
   --popover: #FFFFFF;
-  --popover-foreground: #0F172A;
-  --primary: #4F46E5;                /* indigo-600: brand */
+  --popover-foreground: #121316;
+  --primary: #18181B;                /* Solid tactile charcoal */
   --primary-foreground: #FFFFFF;
-  --secondary: #F1F5F9;             /* slate-100: secondary surfaces */
-  --secondary-foreground: #334155;   /* slate-700 */
-  --muted: #F1F5F9;
-  --muted-foreground: #64748B;       /* slate-500 */
-  --accent: #EEF2FF;                /* indigo-50: accent bg */
-  --accent-foreground: #4F46E5;
-  --destructive: #EF4444;
-  --border: #E2E8F0;                /* slate-200: subtle borders */
-  --input: #E2E8F0;
-  --ring: #4F46E5;
-  --chart-1: #4F46E5;              /* Indigo */
-  --chart-2: #10B981;              /* Emerald */
-  --chart-3: #F59E0B;              /* Amber */
-  --chart-4: #EC4899;              /* Pink */
-  --chart-5: #8B5CF6;              /* Violet */
-  --radius: 0.75rem;
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #334155;
-  --sidebar-primary: #4F46E5;
+  --secondary: #F4F4F5;              /* Clean stone secondary */
+  --secondary-foreground: #27272A;
+  --muted: #F4F4F5;
+  --muted-foreground: #71717A;       /* Refined zinc-500 */
+  --accent: #F4F4F5;
+  --accent-foreground: #18181B;
+  --destructive: #DC2626;
+  --border: rgba(0, 0, 0, 0.08);    /* Crisp surgical hairline */
+  --input: rgba(0, 0, 0, 0.09);
+  --ring: #18181B;
+  --chart-1: #18181B;                /* Monochrome lead */
+  --chart-2: #059669;                /* Emerald indicator */
+  --chart-3: #EA580C;                /* Signal Orange */
+  --chart-4: #2563EB;                /* Klein Blue */
+  --chart-5: #71717A;                /* Neutral slate */
+  --radius: 0.625rem;                /* Precise 10px crisp curves */
+  --sidebar: #FBFBFA;
+  --sidebar-foreground: #27272A;
+  --sidebar-primary: #18181B;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #EEF2FF;        /* indigo-50 */
-  --sidebar-accent-foreground: #4F46E5;
-  --sidebar-border: #E2E8F0;
-  --sidebar-ring: #4F46E5;
+  --sidebar-accent: #EFEFEF;
+  --sidebar-accent-foreground: #18181B;
+  --sidebar-border: rgba(0, 0, 0, 0.07);
+  --sidebar-ring: #18181B;
 }
 
 .dark {
-  /* Orbbit dark theme — branding.md */
-  --background: #0A0F1E;              /* bg-primary: deep navy */
-  --foreground: #F9FAFB;              /* text-primary: gray-50 */
-  --card: #111827;                    /* bg-surface: gray-900 */
-  --card-foreground: #F9FAFB;
-  --popover: #1E293B;                 /* bg-elevated: slate-800 */
-  --popover-foreground: #F9FAFB;
-  --primary: #4F46E5;                 /* brand-primary: indigo-600 */
-  --primary-foreground: #FFFFFF;
-  --secondary: #1F2937;               /* bg-surface-hover: gray-800 */
-  --secondary-foreground: #F9FAFB;
-  --muted: #1F2937;
-  --muted-foreground: #9CA3AF;        /* text-secondary: gray-400 */
-  --accent: #312E81;                  /* brand-subtle: indigo-900 */
-  --accent-foreground: #F9FAFB;
-  --destructive: #EF4444;             /* danger: red-500 */
-  --border: #1E293B;                  /* slate-800 */
-  --input: #1E293B;
-  --ring: #6366F1;                    /* brand-hover: indigo-500 */
-  --chart-1: #6366F1;                 /* Indigo */
-  --chart-2: #10B981;                 /* Emerald */
-  --chart-3: #F59E0B;                 /* Amber */
-  --chart-4: #EC4899;                 /* Pink */
-  --chart-5: #8B5CF6;                 /* Violet */
-  --sidebar: #0A0F1E;
-  --sidebar-foreground: #F9FAFB;
-  --sidebar-primary: #4F46E5;         /* indigo-600 */
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #312E81;          /* indigo-900 */
-  --sidebar-accent-foreground: #F9FAFB;
-  --sidebar-border: #1E293B;
-  --sidebar-ring: #6366F1;
+  --background: #0C0D10;
+  --foreground: #F4F4F5;
+  --card: #141519;
+  --card-foreground: #F4F4F5;
+  --popover: #18191E;
+  --popover-foreground: #F4F4F5;
+  --primary: #F4F4F5;
+  --primary-foreground: #0C0D10;
+  --secondary: #1F2026;
+  --secondary-foreground: #F4F4F5;
+  --muted: #1F2026;
+  --muted-foreground: #A1A1AA;
+  --accent: #262830;
+  --accent-foreground: #F4F4F5;
+  --destructive: #EF4444;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #F4F4F5;
+  --chart-1: #F4F4F5;
+  --chart-2: #10B981;
+  --chart-3: #F97316;
+  --chart-4: #3B82F6;
+  --chart-5: #A1A1AA;
+  --sidebar: #0C0D10;
+  --sidebar-foreground: #F4F4F5;
+  --sidebar-primary: #F4F4F5;
+  --sidebar-primary-foreground: #0C0D10;
+  --sidebar-accent: #1F2026;
+  --sidebar-accent-foreground: #F4F4F5;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #F4F4F5;
 }
 
 @layer base {
@@ -124,34 +123,54 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-zinc-900 selection:text-white;
   }
   html {
     @apply font-sans scroll-smooth;
   }
-  /* Enterprise focus states */
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-  /* Smooth transitions on interactive elements */
   button, a, input, select, textarea {
     transition: color 150ms ease, background-color 150ms ease,
-                border-color 150ms ease, box-shadow 150ms ease;
+                border-color 150ms ease, transform 120ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 150ms ease;
   }
-  /* Cursor pointer on clickable elements */
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
   }
-  /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;
     }
   }
-  /* Tabular numbers for data */
   .font-mono, [data-metric] {
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* Swiss Industrial Custom Utility Classes */
+.swiss-hairline {
+  border-width: 1px;
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+.swiss-dot-grid {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.double-bezel {
+  background-color: #F4F4F2;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  padding: 0.375rem;
+  border-radius: 1rem;
+}
+
+.double-bezel-inner {
+  background-color: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: calc(1rem - 0.375rem);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }

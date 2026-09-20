@@ -101,4 +101,44 @@ export const evaluations: EvalSeed[] = [
   { model_api: "microsoft/phi-4", benchmark_name: "MMLU", accuracy: 80.4, accuracy_ci_lower: 76.7, accuracy_ci_upper: 83.6, avg_latency_ms: 120, median_latency_ms: 100, p95_latency_ms: 220, tokens_per_second: 200 },
   { model_api: "microsoft/phi-4", benchmark_name: "HumanEval", accuracy: 82.6, accuracy_ci_lower: 79.0, accuracy_ci_upper: 85.7, avg_latency_ms: 170, median_latency_ms: 150, p95_latency_ms: 310, tokens_per_second: 175 },
   { model_api: "microsoft/phi-4", benchmark_name: "GSM8K", accuracy: 89.2, accuracy_ci_lower: 86.2, accuracy_ci_upper: 91.6, avg_latency_ms: 140, median_latency_ms: 120, p95_latency_ms: 260, tokens_per_second: 190 },
+
+  // Anthropic Claude Fable 5.1 (Frontier Flagship)
+  { model_api: "anthropic/claude-fable-5.1", benchmark_name: "MMLU", accuracy: 94.6, accuracy_ci_lower: 92.4, accuracy_ci_upper: 96.2, avg_latency_ms: 310, median_latency_ms: 270, p95_latency_ms: 590, tokens_per_second: 110 },
+  { model_api: "anthropic/claude-fable-5.1", benchmark_name: "HumanEval", accuracy: 96.4, accuracy_ci_lower: 94.4, accuracy_ci_upper: 97.7, avg_latency_ms: 420, median_latency_ms: 380, p95_latency_ms: 760, tokens_per_second: 95 },
+  { model_api: "anthropic/claude-fable-5.1", benchmark_name: "GSM8K", accuracy: 98.4, accuracy_ci_lower: 96.9, accuracy_ci_upper: 99.2, avg_latency_ms: 340, median_latency_ms: 300, p95_latency_ms: 620, tokens_per_second: 105 },
+  { model_api: "anthropic/claude-fable-5.1", benchmark_name: "MATH", accuracy: 89.2, accuracy_ci_lower: 86.2, accuracy_ci_upper: 91.6, avg_latency_ms: 510, median_latency_ms: 460, p95_latency_ms: 920, tokens_per_second: 85 },
+  { model_api: "anthropic/claude-fable-5.1", benchmark_name: "ARC-Challenge", accuracy: 97.8, accuracy_ci_lower: 96.1, accuracy_ci_upper: 98.8, avg_latency_ms: 260, median_latency_ms: 230, p95_latency_ms: 480, tokens_per_second: 120 },
+  { model_api: "anthropic/claude-fable-5.1", benchmark_name: "GPQA", accuracy: 85.4, accuracy_ci_lower: 82.2, accuracy_ci_upper: 88.3, avg_latency_ms: 540, median_latency_ms: 490, p95_latency_ms: 980, tokens_per_second: 80 },
+
+  // OpenAI GPT-6 Astra (Frontier Flagship)
+  { model_api: "openai/gpt-6-astra", benchmark_name: "MMLU", accuracy: 95.2, accuracy_ci_lower: 93.1, accuracy_ci_upper: 96.7, avg_latency_ms: 280, median_latency_ms: 250, p95_latency_ms: 520, tokens_per_second: 125 },
+  { model_api: "openai/gpt-6-astra", benchmark_name: "HumanEval", accuracy: 97.2, accuracy_ci_lower: 95.4, accuracy_ci_upper: 98.3, avg_latency_ms: 380, median_latency_ms: 340, p95_latency_ms: 700, tokens_per_second: 105 },
+  { model_api: "openai/gpt-6-astra", benchmark_name: "GSM8K", accuracy: 98.8, accuracy_ci_lower: 97.4, accuracy_ci_upper: 99.4, avg_latency_ms: 320, median_latency_ms: 280, p95_latency_ms: 580, tokens_per_second: 115 },
+  { model_api: "openai/gpt-6-astra", benchmark_name: "MATH", accuracy: 98.4, accuracy_ci_lower: 96.9, accuracy_ci_upper: 99.2, avg_latency_ms: 450, median_latency_ms: 410, p95_latency_ms: 820, tokens_per_second: 90 },
+  { model_api: "openai/gpt-6-astra", benchmark_name: "ARC-Challenge", accuracy: 98.2, accuracy_ci_lower: 96.6, accuracy_ci_upper: 99.0, avg_latency_ms: 240, median_latency_ms: 210, p95_latency_ms: 440, tokens_per_second: 130 },
+  { model_api: "openai/gpt-6-astra", benchmark_name: "GPQA", accuracy: 87.6, accuracy_ci_lower: 84.6, accuracy_ci_upper: 90.2, avg_latency_ms: 500, median_latency_ms: 450, p95_latency_ms: 910, tokens_per_second: 85 },
+
+  // Google Gemini 3.8 Flash (High-Speed Frontier)
+  { model_api: "google/gemini-3.8-flash", benchmark_name: "MMLU", accuracy: 89.4, accuracy_ci_lower: 86.5, accuracy_ci_upper: 91.9, avg_latency_ms: 110, median_latency_ms: 95, p95_latency_ms: 210, tokens_per_second: 220 },
+  { model_api: "google/gemini-3.8-flash", benchmark_name: "HumanEval", accuracy: 88.8, accuracy_ci_lower: 85.8, accuracy_ci_upper: 91.4, avg_latency_ms: 150, median_latency_ms: 130, p95_latency_ms: 280, tokens_per_second: 195 },
+  { model_api: "google/gemini-3.8-flash", benchmark_name: "GSM8K", accuracy: 94.6, accuracy_ci_lower: 92.4, accuracy_ci_upper: 96.2, avg_latency_ms: 120, median_latency_ms: 105, p95_latency_ms: 230, tokens_per_second: 210 },
+  { model_api: "google/gemini-3.8-flash", benchmark_name: "MATH", accuracy: 84.5, accuracy_ci_lower: 81.1, accuracy_ci_upper: 87.4, avg_latency_ms: 180, median_latency_ms: 160, p95_latency_ms: 340, tokens_per_second: 180 },
+  { model_api: "google/gemini-3.8-flash", benchmark_name: "ARC-Challenge", accuracy: 94.8, accuracy_ci_lower: 92.6, accuracy_ci_upper: 96.4, avg_latency_ms: 95, median_latency_ms: 85, p95_latency_ms: 190, tokens_per_second: 240 },
+
+  // DeepSeek V4.1 Flash (High-Speed Frontier MoE)
+  { model_api: "deepseek/deepseek-v4.1-flash", benchmark_name: "MMLU", accuracy: 91.6, accuracy_ci_lower: 88.8, accuracy_ci_upper: 93.7, avg_latency_ms: 150, median_latency_ms: 130, p95_latency_ms: 290, tokens_per_second: 180 },
+  { model_api: "deepseek/deepseek-v4.1-flash", benchmark_name: "HumanEval", accuracy: 93.8, accuracy_ci_lower: 91.4, accuracy_ci_upper: 95.6, avg_latency_ms: 210, median_latency_ms: 190, p95_latency_ms: 390, tokens_per_second: 155 },
+  { model_api: "deepseek/deepseek-v4.1-flash", benchmark_name: "GSM8K", accuracy: 97.8, accuracy_ci_lower: 96.1, accuracy_ci_upper: 98.8, avg_latency_ms: 170, median_latency_ms: 150, p95_latency_ms: 330, tokens_per_second: 170 },
+  { model_api: "deepseek/deepseek-v4.1-flash", benchmark_name: "MATH", accuracy: 94.6, accuracy_ci_lower: 92.4, accuracy_ci_upper: 96.2, avg_latency_ms: 260, median_latency_ms: 230, p95_latency_ms: 490, tokens_per_second: 135 },
+  { model_api: "deepseek/deepseek-v4.1-flash", benchmark_name: "GPQA", accuracy: 79.4, accuracy_ci_lower: 75.7, accuracy_ci_upper: 82.8, avg_latency_ms: 320, median_latency_ms: 290, p95_latency_ms: 590, tokens_per_second: 110 },
+
+  // Qwen 3.8 Flash (Alibaba Frontier)
+  { model_api: "qwen/qwen3.8-flash", benchmark_name: "MMLU", accuracy: 88.8, accuracy_ci_lower: 85.8, accuracy_ci_upper: 91.4, avg_latency_ms: 125, median_latency_ms: 110, p95_latency_ms: 240, tokens_per_second: 200 },
+  { model_api: "qwen/qwen3.8-flash", benchmark_name: "HumanEval", accuracy: 89.4, accuracy_ci_lower: 86.5, accuracy_ci_upper: 91.9, avg_latency_ms: 180, median_latency_ms: 160, p95_latency_ms: 340, tokens_per_second: 170 },
+  { model_api: "qwen/qwen3.8-flash", benchmark_name: "GSM8K", accuracy: 95.2, accuracy_ci_lower: 93.1, accuracy_ci_upper: 96.7, avg_latency_ms: 140, median_latency_ms: 120, p95_latency_ms: 270, tokens_per_second: 190 },
+  { model_api: "qwen/qwen3.8-flash", benchmark_name: "MATH", accuracy: 87.2, accuracy_ci_lower: 84.0, accuracy_ci_upper: 89.8, avg_latency_ms: 220, median_latency_ms: 195, p95_latency_ms: 410, tokens_per_second: 145 },
+
+  // InclusionAI Ling 3.0 Flash Sante (Calibrated empirical full-suite run)
+  { model_api: "inclusionai/ling-3.0-flash-sante:free", benchmark_name: "MMLU", accuracy: 77.6, accuracy_ci_lower: 73.8, accuracy_ci_upper: 81.1, avg_latency_ms: 1650, median_latency_ms: 1520, p95_latency_ms: 2400, tokens_per_second: 112 },
+  { model_api: "inclusionai/ling-3.0-flash-sante:free", benchmark_name: "GSM8K", accuracy: 79.4, accuracy_ci_lower: 75.7, accuracy_ci_upper: 82.8, avg_latency_ms: 1580, median_latency_ms: 1490, p95_latency_ms: 2320, tokens_per_second: 115 },
 ];

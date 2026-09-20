@@ -23,18 +23,19 @@ export async function proxy(request: NextRequest) {
 
   // Refresh session
   const { data: { user } } = await supabase.auth.getUser();
+  const isGuestDemo = request.cookies.get("orbbit_guest_demo")?.value === "true";
 
   const pathname = request.nextUrl.pathname;
 
-  // Protect all /dashboard and /settings routes — require sign in
-  if ((pathname.startsWith("/dashboard") || pathname.startsWith("/settings")) && !user) {
+  // Protect all /dashboard and /settings routes — require sign in or guest demo session
+  if ((pathname.startsWith("/dashboard") || pathname.startsWith("/settings")) && !user && !isGuestDemo) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect already authenticated users away from login/signup to dashboard
-  if ((pathname === "/login" || pathname === "/signup") && user) {
+  // Redirect already authenticated users (or guest demo) away from login/signup to dashboard
+  if ((pathname === "/login" || pathname === "/signup") && (user || isGuestDemo)) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
