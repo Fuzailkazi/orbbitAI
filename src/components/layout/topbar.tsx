@@ -2,11 +2,13 @@
 
 import { Bell, Search } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function Topbar() {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 backdrop-blur-sm px-6 sticky top-0 z-40">
-      <div className="flex items-center gap-4">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 backdrop-blur-sm px-4 sm:px-6 sticky top-0 z-40">
+      <div className="flex items-center gap-3">
+        <SidebarTrigger className="h-8 w-8 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95 shadow-2xs" />
         <div className="relative hidden md:flex items-center">
           <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <input

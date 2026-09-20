@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronLeft, LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut } from "lucide-react";
 import {
   LayoutDashboard, Layers, Trophy, Columns3, LayoutGrid, Play,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton,
-  SidebarMenuItem, SidebarFooter, useSidebar,
+  SidebarMenuItem, SidebarFooter, SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { createBrowserClient } from "@/lib/supabase/client";
 
@@ -63,23 +63,6 @@ function NavGroup({ label, items, pathname }: { label: string; items: typeof ove
   );
 }
 
-function CollapseToggle() {
-  const { toggleSidebar, state } = useSidebar();
-  const isCollapsed = state === "collapsed";
-
-  return (
-    <button
-      onClick={toggleSidebar}
-      className="absolute -right-3 top-13 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card shadow-sm transition-transform hover:scale-105"
-      aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-    >
-      <ChevronLeft
-        className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isCollapsed ? "rotate-180" : ""}`}
-      />
-    </button>
-  );
-}
-
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -123,23 +106,22 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar collapsible="icon" className="relative border-r border-border bg-background h-full">
-      <CollapseToggle />
-
-      <SidebarHeader className="px-3.5 py-4 shrink-0 border-b border-border">
-        <Link href="/" className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-xs font-semibold">
+    <Sidebar collapsible="icon" className="border-r border-border bg-background h-full">
+      <SidebarHeader className="px-3.5 py-3 shrink-0 border-b border-border flex flex-row items-center justify-between gap-2">
+        <Link href="/" className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center min-w-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-xs font-semibold shadow-2xs">
             O
           </div>
-          <div className="group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold tracking-tight text-foreground block">
+          <div className="group-data-[collapsible=icon]:hidden truncate">
+            <span className="text-sm font-semibold tracking-tight text-foreground block truncate">
               Orbbit
             </span>
-            <span className="text-[11px] text-muted-foreground block -mt-0.5">
+            <span className="text-[11px] text-muted-foreground block -mt-0.5 truncate">
               AI Evaluation Platform
             </span>
           </div>
         </Link>
+        <SidebarTrigger className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted group-data-[collapsible=icon]:hidden shrink-0" />
       </SidebarHeader>
 
       <SidebarContent className="px-2.5 py-3 group-data-[collapsible=icon]:px-0 overflow-y-auto space-y-1">
