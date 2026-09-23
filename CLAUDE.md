@@ -159,6 +159,9 @@ INNGEST_SIGNING_KEY=
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Guest demo (HMAC secret for the signed guest cookie; falls back to a key derived from SUPABASE_SERVICE_ROLE_KEY)
+GUEST_DEMO_SECRET=
 ```
 
 ## Data Schemas
@@ -304,7 +307,7 @@ interface ValueScore {
 
 10. **One scorer per benchmark, declared in the benchmark config.** The scoring method is a property of the benchmark, not a runtime choice. MMLU = exact_match. HumanEval = pass_at_k. MT-Bench = llm_judge.
 
-11. **Dark mode is the default.** Light mode can exist as a toggle, but all new components must be designed dark-first. Test in dark mode first.
+11. **Light mode is the default.** The product ships a clean light theme. All colors come from the semantic tokens in `src/app/globals.css` (`bg-background`, `text-muted-foreground`, `border-border`, `text-success`, etc.) — never hardcode palette classes like `bg-white`/`text-slate-500` or hex values in components. The `.dark` token set is kept in sync so a dark toggle stays possible, but design and test light-first.
 
 ---
 

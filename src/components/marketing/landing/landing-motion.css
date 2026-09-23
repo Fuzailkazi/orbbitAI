@@ -1,0 +1,47 @@
+/*
+ * Keyframes for the landing page entrance animations. They replace the former motion/react
+ * animations one for one (same distances, durations, delays and easing) but run from the first
+ * paint instead of after hydration. The animation shorthand is applied with Tailwind arbitrary
+ * `animate-[…]` utilities in the components; only the keyframes live here.
+ */
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+}
+
+@keyframes landing-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes landing-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* Grows a bar from zero to its inline `width`. */
+@keyframes landing-grow {
+  from {
+    width: 0;
+  }
+}
+
+/* Arena rows: enter from below, exit upward (AnimatePresence mode="wait" equivalent). */
+@keyframes landing-rows-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes landing-rows-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}

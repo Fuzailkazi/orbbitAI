@@ -1,11 +1,51 @@
-import { createClient } from "@supabase/supabase-js";
-import type { ModelCategory } from "@/types/database";
+import { createAdminClient } from "../supabase/admin";
+import type { ModelCategory, ModelInsert } from "@/types/database";
 
 export interface OpenRouterSyncResult {
   totalDiscovered: number;
   newModelsAdded: number;
   modelsUpdated: number;
+  /** Rows that could not be written (batch upsert errors). */
+  failedWrites: number;
   models: { name: string; vendor: string; api_identifier: string }[];
+}
+
+/** Subset of an entry in GET https://openrouter.ai/api/v1/models. Prices are $/token strings. */
+export interface OpenRouterCatalogModel {
+  id: string;
+  name?: string;
+  description?: string | null;
+  context_length?: number | null;
+  pricing?: {
+    prompt?: string | number | null;
+    completion?: string | number | null;
+  } | null;
+}
+
+interface OpenRouterCatalogResponse {
+  data?: unknown;
+}
+
+/** Sanity cap ($/1M). Real text models are far below this; guards against sentinel/overflow values. */
+const MAX_PRICE_PER_MILLION = 999.99;
+const MAX_CONTEXT_WINDOW = 2_147_483_647;
+const UPSERT_BATCH_SIZE = 50;
+
+function isCatalogModel(value: unknown): value is OpenRouterCatalogModel {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { id?: unknown }).id === "string" &&
+    (value as { id: string }).id.length > 0
+  );
+}
+
+/** "$/token" string → "$/1M tokens", clamped to the column range, 4 decimals (no lossy 2dp rounding). */
+function toPricePerMillion(perToken: string | number | null | undefined): number {
+  const n = typeof perToken === "string" ? parseFloat(perToken) : perToken;
+  if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) return 0;
+  const perMillion = Math.min(MAX_PRICE_PER_MILLION, n * 1_000_000);
+  return Math.round(perMillion * 10_000) / 10_000;
 }
 
 function parseVendorAndCategory(modelId: string, name: string): { vendor: string; category: ModelCategory } {
@@ -42,87 +82,102 @@ function parseVendorAndCategory(modelId: string, name: string): { vendor: string
 }
 
 export async function syncOpenRouterModels(): Promise<OpenRouterSyncResult> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabase = createAdminClient();
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing Supabase credentials for sync.");
-  }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-  // Fetch from OpenRouter public API
-  const response = await fetch("https://openrouter.ai/api/v1/models");
+  // Fetch from OpenRouter public catalog API
+  const response = await fetch("https://openrouter.ai/api/v1/models", {
+    signal: AbortSignal.timeout(30_000),
+  });
   if (!response.ok) {
-    throw new Error(`Failed to fetch OpenRouter models: ${response.statusText}`);
+    throw new Error(`Failed to fetch OpenRouter models: ${response.status} ${response.statusText}`);
   }
 
-  const json = await response.json();
-  const rawModels: any[] = json.data || [];
+  const json = (await response.json()) as OpenRouterCatalogResponse;
+  const rawList: unknown[] = Array.isArray(json.data) ? json.data : [];
 
-  // Fetch existing models from Supabase
-  const { data: existingRows } = await supabase.from("models").select("api_identifier");
-  const existingIdentifiers = new Set((existingRows || []).map((m) => m.api_identifier));
+  // De-duplicate by id — a duplicate key inside one upsert statement is a Postgres error.
+  const catalog = new Map<string, OpenRouterCatalogModel>();
+  for (const entry of rawList) {
+    if (isCatalogModel(entry)) catalog.set(entry.id, entry);
+  }
+
+  // Existing identifiers, to report new vs updated
+  const { data: existingRows, error: existingErr } = await supabase.from("models").select("api_identifier");
+  if (existingErr) {
+    throw new Error(`Failed to read existing models: ${existingErr.message}`);
+  }
+  const existingIdentifiers = new Set(
+    ((existingRows ?? []) as { api_identifier: string }[]).map((m) => m.api_identifier)
+  );
+
+  type SyncRow = Omit<ModelInsert, "release_date"> & { updated_at: string };
+  const now = new Date().toISOString();
+  const toUpsert: { row: SyncRow; isNew: boolean }[] = [];
+
+  for (const item of catalog.values()) {
+    const apiIdentifier = item.id;
+    const displayName = item.name?.trim() || apiIdentifier;
+    const { vendor, category } = parseVendorAndCategory(apiIdentifier, displayName);
+    const rawContext =
+      typeof item.context_length === "number" && item.context_length > 0 ? item.context_length : 8192;
+
+    toUpsert.push({
+      isNew: !existingIdentifiers.has(apiIdentifier),
+      row: {
+        name: displayName,
+        vendor,
+        category,
+        context_window: Math.min(Math.round(rawContext), MAX_CONTEXT_WINDOW),
+        pricing_input: toPricePerMillion(item.pricing?.prompt),
+        pricing_output: toPricePerMillion(item.pricing?.completion),
+        api_identifier: apiIdentifier,
+        description: item.description?.slice(0, 300) || null,
+        is_active: true,
+        tags: [category, vendor.toLowerCase(), apiIdentifier.endsWith(":free") ? "free" : "commercial"],
+        updated_at: now,
+      },
+    });
+  }
 
   let newModelsAdded = 0;
   let modelsUpdated = 0;
-  const newModelList: { name: string; vendor: string; api_identifier: string }[] = [];
+  let failedWrites = 0;
+  const newModelList: OpenRouterSyncResult["models"] = [];
 
-  // Batch insert new models
-  const toUpsert: any[] = [];
+  for (let i = 0; i < toUpsert.length; i += UPSERT_BATCH_SIZE) {
+    const chunk = toUpsert.slice(i, i + UPSERT_BATCH_SIZE);
+    const { error: upsertErr } = await supabase
+      .from("models")
+      .upsert(
+        chunk.map((c) => c.row),
+        { onConflict: "api_identifier" }
+      );
 
-  for (const item of rawModels) {
-    const apiIdentifier = item.id;
-    const { vendor, category } = parseVendorAndCategory(apiIdentifier, item.name);
+    if (upsertErr) {
+      console.error("OpenRouter sync batch upsert error:", upsertErr.message);
+      failedWrites += chunk.length;
+      continue;
+    }
 
-    // Convert pricing: OpenRouter returns price per token as string e.g. "0.000002"
-    // We store as $/1M tokens
-    const pricingInput = item.pricing?.prompt ? parseFloat(item.pricing.prompt) * 1_000_000 : 0;
-    const pricingOutput = item.pricing?.completion ? parseFloat(item.pricing.completion) * 1_000_000 : 0;
-    const rawContext = item.context_length || 8192;
-    const contextWindow = Math.min(rawContext, 2147483647);
-    const safePriceIn = Number.isFinite(pricingInput) ? Math.max(0, Math.min(999.99, pricingInput)) : 0;
-    const safePriceOut = Number.isFinite(pricingOutput) ? Math.max(0, Math.min(999.99, pricingOutput)) : 0;
-
-    const isNew = !existingIdentifiers.has(apiIdentifier);
-
-    toUpsert.push({
-      name: item.name || apiIdentifier,
-      vendor,
-      category,
-      context_window: contextWindow,
-      pricing_input: Math.round(safePriceIn * 100) / 100,
-      pricing_output: Math.round(safePriceOut * 100) / 100,
-      api_identifier: apiIdentifier,
-      description: item.description?.slice(0, 300) || null,
-      is_active: true,
-      tags: [category, vendor.toLowerCase(), item.id.includes(":free") ? "free" : "commercial"],
-    });
-
-    if (isNew) {
-      newModelsAdded++;
-      newModelList.push({ name: item.name || apiIdentifier, vendor, api_identifier: apiIdentifier });
-    } else {
-      modelsUpdated++;
+    for (const { row, isNew } of chunk) {
+      if (isNew) {
+        newModelsAdded++;
+        newModelList.push({ name: row.name, vendor: row.vendor, api_identifier: row.api_identifier });
+      } else {
+        modelsUpdated++;
+      }
     }
   }
 
-  // Upsert in batches of 50
-  for (let i = 0; i < toUpsert.length; i += 50) {
-    const chunk = toUpsert.slice(i, i + 50);
-    const { error: upsertErr } = await supabase
-      .from("models")
-      .upsert(chunk, { onConflict: "api_identifier" });
-
-    if (upsertErr) {
-      console.error("Batch upsert error:", upsertErr.message);
-    }
+  if (toUpsert.length > 0 && failedWrites === toUpsert.length) {
+    throw new Error("OpenRouter sync failed: no models could be written to the database.");
   }
 
   return {
-    totalDiscovered: rawModels.length,
+    totalDiscovered: catalog.size,
     newModelsAdded,
     modelsUpdated,
+    failedWrites,
     models: newModelList.slice(0, 10),
   };
 }

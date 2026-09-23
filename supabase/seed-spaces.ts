@@ -14,7 +14,7 @@ export const spaces: SpaceSeed[] = [
   },
   {
     name: "Code Generation",
-    description: "Functional code generation across Python and multiple languages.",
+    description: "Functional code generation, graded by executing the JavaScript ports (MultiPL-E) of HumanEval and MBPP against their tests.",
     icon: "code",
     benchmark_names: ["HumanEval", "MBPP", "LiveCodeBench"],
   },

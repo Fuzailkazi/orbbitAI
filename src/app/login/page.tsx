@@ -1,128 +1,127 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@/lib/supabase/client";
-import { Input } from "@/components/ui/input";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AuthDivider, AuthShell, GuestDemoButton } from "@/components/marketing/auth-shell";
+import { safeRedirectPath } from "@/lib/auth/redirect";
 
-export default function LoginPage() {
+/** supabase-js is only needed on submit: load it on demand (warmed on first focus of the form). */
+function loadSupabaseClient() {
+  return import("@/lib/supabase/client");
+}
+
+const CALLBACK_ERRORS: Record<string, string> = {
+  auth_callback: "That sign-in link is invalid or has expired. Please sign in again.",
+  guest_unavailable: "The guest demo isn't available right now. Please sign in with email.",
+};
+
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = safeRedirectPath(searchParams.get("next"));
+  const callbackError = CALLBACK_ERRORS[searchParams.get("error") ?? ""] ?? "";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(callbackError);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const supabase = createBrowserClient();
 
-  async function handleEmailLogin(e: React.FormEvent) {
+  async function handleEmailLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
+    const clientModule = await loadSupabaseClient().catch(() => null);
+    if (!clientModule) {
+      setError("Couldn't reach the sign-in service. Check your connection and try again.");
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    const supabase = clientModule.createBrowserClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError(signInError.message);
+      setLoading(false);
+      return;
+    }
+    router.push(redirectTo);
     router.refresh();
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm flex flex-col items-center">
-        <div className="mb-8 text-center flex flex-col items-center">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-950 text-primary-foreground font-bold text-sm">
-              <span>O</span>
-            </div>
-            <span className="text-xl font-semibold tracking-tight text-foreground">Orbbit</span>
-          </Link>
-          <p className="font-sans text-sm text-muted-foreground leading-relaxed">
-            Sign in to your account
-          </p>
+    <>
+      <GuestDemoButton redirectTo={redirectTo} disabled={loading} onError={setError} />
+
+      <AuthDivider label="or sign in with email" />
+
+      <form onFocus={() => void loadSupabaseClient()} onSubmit={handleEmailLogin} className="space-y-4">
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="block text-xs font-medium text-muted-foreground">
+            Email
+          </label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            className="h-10"
+          />
         </div>
-
-        <div className="bg-card border border-border rounded-2xl p-8 w-full">
-          <form onSubmit={handleEmailLogin} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="mb-1.5 block font-sans text-xs text-muted-foreground">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                className="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="mb-1.5 block font-sans text-xs text-muted-foreground">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                className="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              />
-            </div>
-            {error && (
-              <p className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive font-sans">
-                {error}
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex h-10 w-full items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-medium transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-card px-2 font-sans text-muted-foreground">Or</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={async () => {
-              setLoading(true);
-              try {
-                await fetch("/api/auth/demo", { method: "POST" });
-                router.push("/dashboard");
-                router.refresh();
-              } catch {
-                router.push("/dashboard");
-              }
-            }}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-transparent text-sm font-medium text-foreground transition-all hover:bg-muted active:scale-[0.98]"
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="block text-xs font-medium text-muted-foreground">
+            Password
+          </label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            required
+            className="h-10"
+          />
+        </div>
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           >
-            <span>Continue as guest</span>
-          </button>
-        </div>
+            {error}
+          </p>
+        )}
+        <Button type="submit" disabled={loading} className="h-10 w-full">
+          {loading && <Loader2 className="animate-spin" data-icon="inline-start" />}
+          {loading ? "Signing in…" : "Sign in"}
+        </Button>
+      </form>
+    </>
+  );
+}
 
-        <p className="mt-6 text-center font-sans text-xs text-muted-foreground">
-          Don't have an account?{" "}
+export default function LoginPage() {
+  return (
+    <AuthShell
+      title="Welcome back"
+      description="Sign in to your Orbbit account"
+      footer={
+        <>
+          Don&apos;t have an account?{" "}
           <Link href="/signup" className="font-semibold text-foreground hover:underline">
             Create one
           </Link>
-        </p>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <Suspense fallback={<div className="h-72" aria-hidden="true" />}>
+        <LoginForm />
+      </Suspense>
+    </AuthShell>
   );
 }

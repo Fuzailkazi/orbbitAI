@@ -2,6 +2,7 @@
 
 import { Star } from "lucide-react";
 import { useFavorites } from "@/hooks/useFavorites";
+import { cn } from "@/lib/utils";
 
 export function ModelFavoriteButton({ modelId }: { modelId: string }) {
   const { toggleFavorite, isFavorite } = useFavorites();
@@ -9,14 +10,17 @@ export function ModelFavoriteButton({ modelId }: { modelId: string }) {
 
   return (
     <button
+      type="button"
       onClick={() => toggleFavorite(modelId)}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+      aria-pressed={active}
+      className={cn(
+        "inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium shadow-sm transition-colors",
         active
-          ? "border-amber-300 bg-amber-50 text-amber-800 shadow-xs"
-          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-      }`}
+          ? "border-warning/30 bg-warning/10 text-warning"
+          : "border-border bg-card text-foreground hover:bg-muted"
+      )}
     >
-      <Star className={`h-3.5 w-3.5 ${active ? "fill-amber-400 text-amber-500" : "text-slate-400"}`} />
+      <Star className={cn("h-3.5 w-3.5", active ? "fill-warning text-warning" : "text-muted-foreground")} />
       {active ? "In Watchlist" : "Add to Watchlist"}
     </button>
   );

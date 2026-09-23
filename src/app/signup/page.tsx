@@ -3,26 +3,40 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight, CheckCircle2, Loader2, Mail } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Mail, CheckCircle, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { AuthDivider, AuthShell, GuestDemoButton } from "@/components/marketing/auth-shell";
+
+/** supabase-js is only needed on submit: load it on demand (warmed on first focus of the form). */
+function loadSupabaseClient() {
+  return import("@/lib/supabase/client");
+}
+
+const MIN_PASSWORD_LENGTH = 6;
 
 export default function SignupPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const router = useRouter();
-  const supabase = createBrowserClient();
+  const [confirmationSentTo, setConfirmationSentTo] = useState<string | null>(null);
 
-  async function handleSignup(e: React.FormEvent) {
+  async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
+    const clientModule = await loadSupabaseClient().catch(() => null);
+    if (!clientModule) {
+      setError("Couldn't reach the sign-in service. Check your connection and try again.");
+      setLoading(false);
+      return;
+    }
+    const supabase = clientModule.createBrowserClient();
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -30,133 +44,121 @@ export default function SignupPage() {
       },
     });
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(signUpError.message);
       setLoading(false);
       return;
     }
 
-    // If session is created immediately (e.g. email confirmations disabled in Supabase)
+    // Email confirmation disabled in Supabase → a session exists immediately.
     if (data.session) {
       router.push("/dashboard");
       router.refresh();
       return;
     }
 
-    // Otherwise, email confirmation link has been sent
     setLoading(false);
-    setShowConfirmModal(true);
+    setConfirmationSentTo(email);
+  }
+
+  const footer = (
+    <>
+      Already have an account?{" "}
+      <Link href="/login" className="font-semibold text-foreground hover:underline">
+        Sign in
+      </Link>
+    </>
+  );
+
+  if (confirmationSentTo) {
+    return (
+      <AuthShell title="Check your email" description="One more step to activate your account" footer={footer}>
+        <div className="space-y-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand">
+            <Mail className="h-6 w-6" />
+          </div>
+          <p className="text-sm leading-relaxed text-muted-foreground" role="status">
+            We sent a confirmation link to{" "}
+            <span className="font-semibold text-foreground break-all">{confirmationSentTo}</span>. Open it to
+            confirm your account and get started.
+          </p>
+          <div className="space-y-1.5 rounded-xl border border-border bg-muted/50 p-3 text-left text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 font-medium text-foreground">
+              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+              Didn&apos;t receive it?
+            </div>
+            <p>Check your spam or junk folder, or wait a few moments for the email to arrive.</p>
+          </div>
+          <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+            <Link href="/login" className={cn(buttonVariants(), "h-10 flex-1")}>
+              Go to sign in
+              <ArrowRight data-icon="inline-end" />
+            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 flex-1"
+              onClick={() => setConfirmationSentTo(null)}
+            >
+              Use another email
+            </Button>
+          </div>
+        </div>
+      </AuthShell>
+    );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4">
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <Card className="w-full max-w-md border-slate-200 bg-white shadow-xl">
-            <CardHeader className="text-center pt-6 pb-2">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
-                <Mail className="h-6 w-6" />
-              </div>
-              <CardTitle className="text-xl font-semibold text-slate-900">
-                Check your email
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 px-6 pb-6 text-center">
-              <p className="text-sm leading-relaxed text-slate-600">
-                We sent a confirmation link to <span className="font-semibold text-slate-900">{email}</span>. Please click the link in your email to confirm your account and get started.
-              </p>
+    <AuthShell title="Create an account" description="Save custom benchmarks and evaluation history" footer={footer}>
+      <GuestDemoButton redirectTo="/dashboard" disabled={loading} onError={setError} />
 
-              <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500 text-left space-y-1.5">
-                <div className="flex items-center gap-2 font-medium text-slate-700">
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                  Didn&apos;t receive it?
-                </div>
-                <p>Check your spam or junk folder, or wait a few moments for the confirmation email to arrive.</p>
-              </div>
+      <AuthDivider label="or sign up with email" />
 
-              <div className="pt-2 flex flex-col sm:flex-row gap-2">
-                <Link
-                  href="/login"
-                  className="flex h-10 w-full items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
-                >
-                  Proceed to Login <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Link>
-                <button
-                  onClick={() => setShowConfirmModal(false)}
-                  className="flex h-10 w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </CardContent>
-          </Card>
+      <form onFocus={() => void loadSupabaseClient()} onSubmit={handleSignup} className="space-y-4">
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="block text-xs font-medium text-muted-foreground">
+            Email
+          </label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@company.com"
+            required
+            className="h-10"
+          />
         </div>
-      )}
-
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600">
-              <span className="text-sm font-bold text-white">O</span>
-            </div>
-            <span className="text-lg font-bold text-slate-900">Orbbit</span>
-          </Link>
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="block text-xs font-medium text-muted-foreground">
+            Password
+          </label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            className="h-10"
+          />
         </div>
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-lg font-semibold text-slate-900">Create an account</CardTitle>
-            <p className="text-sm text-slate-500">Start evaluating AI models</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <form onSubmit={handleSignup} className="space-y-3">
-              <div>
-                <label htmlFor="email" className="mb-1 block text-xs font-medium text-slate-600">
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  required
-                  className="h-10 border-slate-200 bg-slate-50 text-sm"
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="mb-1 block text-xs font-medium text-slate-600">
-                  Password
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 6 characters"
-                  required
-                  minLength={6}
-                  className="h-10 border-slate-200 bg-slate-50 text-sm"
-                />
-              </div>
-              {error && <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex h-10 w-full items-center justify-center rounded-lg bg-indigo-600 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Account"}
-              </button>
-            </form>
-          </CardContent>
-        </Card>
-        <p className="mt-4 text-center text-xs text-slate-500">
-          Already have an account?{" "}
-          <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-700">
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </div>
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {error}
+          </p>
+        )}
+        <Button type="submit" disabled={loading} className="h-10 w-full">
+          {loading && <Loader2 className="animate-spin" data-icon="inline-start" />}
+          {loading ? "Creating account…" : "Create account"}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

@@ -1,13 +1,13 @@
-import { createServerClient } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
-import { LandingClient } from "./landing-client";
+import "@/components/marketing/landing/landing-motion.css";
+import { LandingView } from "@/components/marketing/landing/landing-view";
+import { getLandingData } from "@/components/marketing/landing/showcase";
 
+/**
+ * Landing page. Static with Cache Components: counts and the evaluation showcase come from the
+ * cached data layer (src/lib/data), so the whole page is served from the prerendered shell. The only
+ * request-time read — whether the visitor is signed in — streams into small AuthAware slots.
+ */
 export default async function LandingPage() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const cookieStore = await cookies();
-  const isGuestDemo = cookieStore.get("orbbit_guest_demo")?.value === "true";
-  const isAuthenticated = !!user || isGuestDemo;
-
-  return <LandingClient isAuthenticated={isAuthenticated} />;
+  const { stats, showcase } = await getLandingData();
+  return <LandingView stats={stats} showcase={showcase} />;
 }

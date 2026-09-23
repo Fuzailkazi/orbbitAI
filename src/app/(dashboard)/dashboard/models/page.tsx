@@ -1,23 +1,16 @@
-import { createServerClient } from "@/lib/supabase/server";
-import type { Model } from "@/types/database";
+import type { Metadata } from "next";
+import { getActiveModels } from "@/lib/data";
 import { ModelsClient } from "./models-client";
 
+export const metadata: Metadata = {
+  title: "Models",
+  description: "Browse, search and filter every AI model available through OpenRouter.",
+};
+
 export default async function ModelsPage() {
-  const supabase = await createServerClient();
+  // Cached catalog rows (no description/tags) keep the RSC payload to what the table renders.
+  // Query failures throw and surface through the segment's error.tsx boundary (retry + back link).
+  const models = await getActiveModels();
 
-  const { data: models, error } = await supabase
-    .from("models")
-    .select("*")
-    .eq("is_active", true)
-    .order("name", { ascending: true });
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-sm text-red-500">Failed to load models: {error.message}</p>
-      </div>
-    );
-  }
-
-  return <ModelsClient models={(models as Model[]) ?? []} />;
+  return <ModelsClient models={models} />;
 }

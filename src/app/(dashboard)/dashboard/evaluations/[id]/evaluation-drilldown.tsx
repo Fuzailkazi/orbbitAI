@@ -1,202 +1,328 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Search, HelpCircle, ArrowRight } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, MessageSquareText, Search, XCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { formatLatency, formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-interface EvaluationResultItem {
+/**
+ * One prompt-level trace, pre-shaped on the server (see ./trace-format.ts) so the payload holds
+ * only what is rendered or searched.
+ */
+export interface EvaluationResultItem {
   id: string;
   is_correct: boolean;
-  score: number;
-  latency_ms: number;
-  tokens_used: number;
-  model_response: string;
-  judge_reasoning?: string | null;
-  benchmark_questions: {
+  score: number | null;
+  latency_ms: number | null;
+  tokens_used: number | null;
+  time_to_first_token_ms: number | null;
+  model_response: string | null;
+  judge_reasoning: string | null;
+  /** What the response was graded against (expected answer, tests or baseline response). */
+  reference: { label: string; body: string };
+  /** Null when the question row is missing. */
+  question: {
     prompt: string;
-    expected_answer: string;
-    metadata?: any;
+    /** Metadata display chips as [label, value]. */
+    chips: Array<[string, string]>;
+    /** Searchable expected answer; omitted when identical to `reference.body`. */
+    expected_answer?: string | null;
   } | null;
 }
 
+type ResultFilter = "all" | "correct" | "incorrect" | "excluded";
+
+/** The runner records API failures (rule 9) with this rationale prefix. */
+const FAILURE_PREFIX = "Model API call failed";
+/** The runner prefixes prompts the scorer could not grade (judge down, sandbox failed…). */
+const UNSCORED_PREFIX = "[Unscored]";
+
+function isApiFailure(item: EvaluationResultItem) {
+  return !item.is_correct && (item.judge_reasoning?.startsWith(FAILURE_PREFIX) ?? false);
+}
+
+function isUnscored(item: EvaluationResultItem) {
+  return !item.is_correct && (item.judge_reasoning?.startsWith(UNSCORED_PREFIX) ?? false);
+}
+
+/** Failed calls and unscored prompts are excluded from accuracy and counted in the failure rate. */
+function isExcluded(item: EvaluationResultItem) {
+  return isApiFailure(item) || isUnscored(item);
+}
+
+/** Traces rendered up front; the rest load in steps so 200-prompt runs stay light. */
+const PAGE_STEP = 50;
+
 export function EvaluationDrilldown({
   results,
+  questionsEvaluated,
 }: {
   results: EvaluationResultItem[];
+  /** Total questions scored in the run; traces may be a sample of these. */
+  questionsEvaluated: number;
 }) {
-  const [filter, setFilter] = useState<"all" | "correct" | "incorrect">("all");
+  const [filter, setFilter] = useState<ResultFilter>("all");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(results[0]?.id ?? null);
-
-  const filtered = results.filter((r) => {
-    if (filter === "correct" && !r.is_correct) return false;
-    if (filter === "incorrect" && r.is_correct) return false;
-    if (search.trim()) {
-      const qText = r.benchmark_questions?.prompt?.toLowerCase() ?? "";
-      const rText = r.model_response?.toLowerCase() ?? "";
-      const searchLower = search.toLowerCase();
-      return qText.includes(searchLower) || rText.includes(searchLower);
-    }
-    return true;
-  });
+  const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
 
   const correctCount = results.filter((r) => r.is_correct).length;
-  const incorrectCount = results.length - correctCount;
+  const excludedCount = results.filter(isExcluded).length;
+  const incorrectCount = results.length - correctCount - excludedCount;
+  const query = search.trim().toLowerCase();
+
+  // Keep each prompt's original position so numbering is stable across filters.
+  const indexed = results.map((r, i) => ({ item: r, number: i + 1 }));
+  const filtered = indexed.filter(({ item }) => {
+    if (filter === "correct" && !item.is_correct) return false;
+    if (filter === "incorrect" && (item.is_correct || isExcluded(item))) return false;
+    if (filter === "excluded" && !isExcluded(item)) return false;
+    if (!query) return true;
+    const q = item.question;
+    const haystack = [
+      q?.prompt,
+      q ? (q.expected_answer === undefined ? item.reference.body : q.expected_answer) : null,
+      item.model_response,
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .toLowerCase();
+    return haystack.includes(query);
+  });
+
+  const tabs: Array<{ value: ResultFilter; label: string; count: number; dot?: string }> = [
+    { value: "all", label: "All prompts", count: results.length },
+    { value: "correct", label: "Correct", count: correctCount, dot: "bg-success" },
+    { value: "incorrect", label: "Incorrect", count: incorrectCount, dot: "bg-destructive" },
+    ...(excludedCount > 0
+      ? [{ value: "excluded" as const, label: "Failed / unscored", count: excludedCount, dot: "bg-warning" }]
+      : []),
+  ];
+
+  const isSample = questionsEvaluated > results.length;
+  const visible = filtered.slice(0, visibleCount);
+  const remaining = filtered.length - visible.length;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-          <button
-            onClick={() => setFilter("all")}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              filter === "all"
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            All Prompts ({results.length})
-          </button>
-          <button
-            onClick={() => setFilter("correct")}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              filter === "correct"
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Correct ({correctCount})
-          </button>
-          <button
-            onClick={() => setFilter("incorrect")}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              filter === "incorrect"
-                ? "bg-rose-600 text-white shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Incorrect ({incorrectCount})
-          </button>
+        <div
+          role="group"
+          aria-label="Filter prompts by outcome"
+          className="flex w-full items-center gap-1 overflow-x-auto rounded-xl border border-border bg-muted/50 p-1 shadow-sm [scrollbar-width:none] sm:w-auto"
+        >
+          {tabs.map((tab) => {
+            const active = filter === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => {
+                  setFilter(tab.value);
+                  setVisibleCount(PAGE_STEP);
+                }}
+                className={cn(
+                  "inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors sm:flex-none",
+                  active
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                )}
+              >
+                {tab.dot && <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", tab.dot)} />}
+                {tab.label}
+                <span className="font-mono tabular-nums opacity-70">{tab.count}</span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search prompt or answer..."
+        <div className="relative w-full sm:w-72">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            aria-label="Search prompts, answers and responses"
+            placeholder="Search prompt or answer…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setVisibleCount(PAGE_STEP);
+            }}
+            className="h-9 rounded-xl bg-card pl-9 shadow-sm"
           />
         </div>
       </div>
 
+      {isSample && (
+        <p className="text-xs text-muted-foreground">
+          Showing <span className="font-mono tabular-nums text-foreground">{formatNumber(results.length)}</span>{" "}
+          traced prompts from{" "}
+          <span className="font-mono tabular-nums text-foreground">{formatNumber(questionsEvaluated)}</span>{" "}
+          evaluated questions.
+        </p>
+      )}
+
       <div className="grid gap-3">
         {filtered.length === 0 ? (
-          <Card className="border-dashed border-slate-200 bg-slate-50/50 p-8 text-center text-sm text-slate-500">
-            No prompts found matching your filter criteria.
-          </Card>
+          <div className="rounded-xl border border-dashed border-border bg-muted/40 p-8 text-center text-sm text-muted-foreground">
+            No prompts match your filter.
+          </div>
         ) : (
-          filtered.map((item, idx) => {
+          visible.map(({ item, number }) => {
             const isExpanded = expandedId === item.id;
-            const q = item.benchmark_questions;
+            const q = item.question;
+            const meta = q?.chips ?? [];
+            const panelId = `trace-${item.id}`;
+            const failed = isApiFailure(item);
+            const unscored = isUnscored(item);
+            const reference = item.reference;
 
             return (
-              <Card
+              <div
                 key={item.id}
-                className={`border transition-all shadow-sm ${
+                className={cn(
+                  "overflow-hidden rounded-xl border bg-card shadow-sm transition-colors",
                   item.is_correct
-                    ? "border-slate-200 hover:border-emerald-300"
-                    : "border-rose-200 bg-rose-50/20 hover:border-rose-300"
-                }`}
+                    ? "border-border hover:border-success/40"
+                    : "border-destructive/25 hover:border-destructive/40"
+                )}
               >
-                <CardHeader
+                <button
+                  type="button"
                   onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                  className="cursor-pointer p-4 transition-colors hover:bg-slate-50/50"
+                  aria-expanded={isExpanded}
+                  aria-controls={panelId}
+                  className="flex w-full items-start gap-3 p-4 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-[11px] font-semibold text-slate-600">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <p className="line-clamp-2 text-sm font-medium text-slate-900">
-                          {q?.prompt ?? "Question content unavailable"}
-                        </p>
-                        <div className="mt-1 flex items-center gap-3 text-[11px] text-slate-400">
-                          <span>Latency: {item.latency_ms}ms</span>
-                          <span>•</span>
-                          <span>Tokens: {item.tokens_used}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-2">
-                      {item.is_correct ? (
-                        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[11px] font-medium text-emerald-700">
-                          <CheckCircle2 className="mr-1 h-3 w-3 text-emerald-600" /> Correct
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-rose-200 bg-rose-50 text-[11px] font-medium text-rose-700">
-                          <XCircle className="mr-1 h-3 w-3 text-rose-600" /> Incorrect
-                        </Badge>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
+                    {number}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("text-sm font-medium text-foreground", isExpanded ? "whitespace-pre-wrap break-words" : "line-clamp-2")}>
+                      {q?.prompt ?? "Question content unavailable"}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+                      <span>{formatLatency(item.latency_ms)}</span>
+                      {item.time_to_first_token_ms !== null && (
+                        <span>TTFT {formatLatency(item.time_to_first_token_ms)}</span>
                       )}
+                      <span>{formatNumber(item.tokens_used)} tok</span>
+                      {item.score !== null && <span>score {item.score.toFixed(2)}</span>}
                     </div>
                   </div>
-                </CardHeader>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {item.is_correct ? (
+                      <span className="inline-flex h-5 items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 text-[11px] font-medium text-success">
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span className="hidden min-[420px]:inline">Correct</span>
+                      </span>
+                    ) : failed ? (
+                      <span
+                        className="inline-flex h-5 items-center gap-1 rounded-full border border-warning/20 bg-warning/10 px-2 text-[11px] font-medium text-warning"
+                        title="The model API call failed (recorded, never retried). Excluded from accuracy; counted in the failure rate."
+                      >
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="hidden min-[420px]:inline">Request failed</span>
+                      </span>
+                    ) : unscored ? (
+                      <span
+                        className="inline-flex h-5 items-center gap-1 rounded-full border border-warning/20 bg-warning/10 px-2 text-[11px] font-medium text-warning"
+                        title="The scorer could not grade this response. Excluded from accuracy; counted in the failure rate."
+                      >
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="hidden min-[420px]:inline">Not scored</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex h-5 items-center gap-1 rounded-full border border-destructive/20 bg-destructive/10 px-2 text-[11px] font-medium text-destructive">
+                        <XCircle className="h-3 w-3" />
+                        <span className="hidden min-[420px]:inline">Incorrect</span>
+                      </span>
+                    )}
+                    <ChevronDown
+                      aria-hidden
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform",
+                        isExpanded && "rotate-180"
+                      )}
+                    />
+                  </div>
+                </button>
 
                 {isExpanded && (
-                  <CardContent className="border-t border-slate-100 bg-slate-50/40 p-4 space-y-4">
-                    <div>
-                      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                        Full Prompt
-                      </h4>
-                      <pre className="mt-1.5 whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-800">
-                        {q?.prompt}
-                      </pre>
-                    </div>
+                  <div id={panelId} className="space-y-4 border-t border-border bg-muted/30 p-4">
+                    {meta.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {meta.map(([k, v]) => (
+                          <span
+                            key={k}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                          >
+                            <span className="capitalize">{k}</span>
+                            <span className="font-mono text-foreground">{v}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                          Model Response
+                      <div className="min-w-0">
+                        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Model response
                         </h4>
-                        <pre className={`mt-1.5 whitespace-pre-wrap rounded-lg border p-3 font-mono text-xs ${
-                          item.is_correct
-                            ? "border-emerald-200 bg-emerald-50/40 text-emerald-950"
-                            : "border-rose-200 bg-rose-50/50 text-rose-950"
-                        }`}>
-                          {item.model_response}
+                        <pre
+                          className={cn(
+                            "mt-1.5 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg border p-3 font-mono text-xs text-foreground",
+                            item.is_correct
+                              ? "border-success/20 bg-success/5"
+                              : "border-destructive/20 bg-destructive/5"
+                          )}
+                        >
+                          {item.model_response || "(empty response)"}
                         </pre>
                       </div>
 
-                      <div>
-                        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                          Ground Truth (Expected)
+                      <div className="min-w-0">
+                        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {reference.label}
                         </h4>
-                        <pre className="mt-1.5 whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-800">
-                          {q?.expected_answer}
+                        <pre className="mt-1.5 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-card p-3 font-mono text-xs text-foreground">
+                          {reference.body}
                         </pre>
                       </div>
                     </div>
 
                     {item.judge_reasoning && (
-                      <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-900">
-                          <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
-                          Evaluation Analysis
+                      <div className="rounded-lg border border-brand/15 bg-brand/5 p-3">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <MessageSquareText className="h-3.5 w-3.5 text-brand" />
+                          {failed ? "Failure details" : unscored ? "Why it was not scored" : "Scoring rationale"}
                         </div>
-                        <p className="mt-1 text-xs text-indigo-950/80">
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                           {item.judge_reasoning}
                         </p>
                       </div>
                     )}
-                  </CardContent>
+                  </div>
                 )}
-              </Card>
+              </div>
             );
           })
+        )}
+        {remaining > 0 && (
+          <button
+            type="button"
+            onClick={() => setVisibleCount((n) => n + PAGE_STEP)}
+            className="rounded-xl border border-dashed border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted/40 hover:text-foreground"
+          >
+            Show {formatNumber(Math.min(PAGE_STEP, remaining))} more{" "}
+            <span className="font-mono tabular-nums opacity-70">
+              ({formatNumber(visible.length)} of {formatNumber(filtered.length)})
+            </span>
+          </button>
         )}
       </div>
     </div>

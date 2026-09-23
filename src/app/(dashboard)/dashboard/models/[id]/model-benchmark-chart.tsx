@@ -1,14 +1,9 @@
 "use client";
 
-import { AccuracyBarChart } from "@/components/charts/accuracy-bar-chart";
+import { AccuracyBarChart, type AccuracyBarDatum } from "@/components/charts/accuracy-bar-chart";
 
 interface ModelBenchmarkChartProps {
-  data: Array<{
-    name: string;
-    accuracy: number;
-    ci_lower: number;
-    ci_upper: number;
-  }>;
+  data: AccuracyBarDatum[];
 }
 
 export function ModelBenchmarkChart({ data }: ModelBenchmarkChartProps) {

@@ -1,49 +1,66 @@
-import { createServerClient } from "@/lib/supabase/server";
-import { EvaluateClient } from "./evaluate-client";
-import { Play } from "lucide-react";
-import type { Model, Benchmark } from "@/types/database";
+import type { Metadata } from "next";
+import { getFreeModels, getModelById, getRunnableBenchmarks } from "@/lib/data";
+import { isUuid } from "@/lib/api/responses";
+import {
+  EvaluateClient,
+  type EvaluateBenchmark,
+  type EvaluateModel,
+} from "./evaluate-client";
 
-export default async function EvaluatePage() {
-  const supabase = await createServerClient();
+export const metadata: Metadata = {
+  title: "Run evaluation",
+};
 
-  // Fetch active models
-  const { data: models } = await supabase
-    .from("models")
-    .select("*")
-    .order("vendor", { ascending: true })
-    .order("name", { ascending: true });
+export default async function EvaluatePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ model?: string | string[] }>;
+}) {
+  // searchParams is request-time data; loading.tsx is its Suspense boundary. The model and
+  // benchmark lists come from the shared cache (src/lib/data), so no per-request query runs.
+  const [params, freeModels, runnable] = await Promise.all([
+    searchParams,
+    getFreeModels(),
+    getRunnableBenchmarks(),
+  ]);
+  const requestedModelId = isUuid(params.model) ? params.model : undefined;
 
-  // Fetch benchmarks and question counts
-  const { data: benchmarks } = await supabase
-    .from("benchmarks")
-    .select("*, benchmark_questions(count)")
-    .order("name", { ascending: true });
+  // Live runs are restricted to OpenRouter's free tier (CLAUDE.md), so only `:free` models are
+  // sent to the client — this also keeps the payload small.
+  const models: EvaluateModel[] = freeModels;
 
-  const activeBenchmarks = (benchmarks ?? []).map((b: any) => ({
-    ...b,
-    available_questions: b.benchmark_questions?.[0]?.count ?? 0,
+  // Runnable prompts, matching the runner: standard benchmarks run imported (hf) questions only
+  // (0 = "not yet runnable"); custom uploads run all of theirs.
+  const benchmarks: EvaluateBenchmark[] = runnable.map((b) => ({
+    id: b.id,
+    name: b.name,
+    description: b.description,
+    category: b.category,
+    scoring_method: b.scoring_method,
+    total_questions: b.total_questions,
+    source_url: b.source_url ?? null,
+    available_questions: b.available_questions,
   }));
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-            <Play className="h-4 w-4 fill-indigo-600" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Run Model Evaluation
-          </h1>
-        </div>
-        <p className="mt-1 text-sm text-slate-500">
-          Execute live standardized benchmark tests against any model in the catalog. Telemetry, latency distributions, and statistical confidence intervals will be recorded automatically.
-        </p>
-      </div>
+  // Deep link from a model detail page (?model=<id>). Paid models cannot run live,
+  // so resolve their name to explain why a free model is selected instead. The name is only a
+  // hint, so a lookup failure is logged and the page still renders (as before).
+  const requestedPaidModelName =
+    requestedModelId && !models.some((m) => m.id === requestedModelId)
+      ? (
+          await getModelById(requestedModelId).catch((err: unknown) => {
+            console.error("Failed to resolve the requested model name:", err);
+            return null;
+          })
+        )?.name
+      : undefined;
 
-      <EvaluateClient
-        models={(models ?? []) as Model[]}
-        benchmarks={activeBenchmarks as any[]}
-      />
-    </div>
+  return (
+    <EvaluateClient
+      models={models}
+      benchmarks={benchmarks}
+      initialModelId={requestedModelId}
+      requestedPaidModelName={requestedPaidModelName}
+    />
   );
 }

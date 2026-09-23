@@ -140,6 +140,8 @@ export type ModelInsert = Omit<Model, "id" | "created_at" | "updated_at">;
 export type BenchmarkInsert = Omit<Benchmark, "id" | "created_at">;
 export type EvaluationInsert = Omit<Evaluation, "id" | "created_at">;
 export type SpaceInsert = Omit<Space, "id" | "created_at">;
+export type BenchmarkQuestionInsert = Omit<BenchmarkQuestion, "id" | "created_at">;
+export type EvaluationResultInsert = Omit<EvaluationResult, "id" | "created_at">;
 
 // === VALUE SCORE (app-level, not a DB table) ===
 

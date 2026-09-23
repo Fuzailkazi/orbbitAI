@@ -1,44 +1,205 @@
 "use client";
 
 import { useState } from "react";
-import { X, Upload, FileText, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { Dialog } from "@base-ui/react/dialog";
+import { toast } from "sonner";
+import { AlertCircle, CheckCircle2, FileText, Loader2, Sparkles, Upload, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+/** Shape returned by POST /api/benchmarks/custom. */
+export interface CreatedBenchmark {
+  id: string;
+  name: string;
+  category: string;
+  scoring_method: string;
+  total_questions: number;
+}
 
 interface CustomBenchmarkModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (benchmark: { id: string; name: string; category: string; scoring_method: string }) => void;
+  onCreated: (benchmark: CreatedBenchmark) => void;
 }
 
-const SAMPLE_DATASET = [
+interface DatasetRow {
+  prompt: string;
+  expected_answer: string;
+}
+
+type CustomScoringMethod = "exact_match" | "normalized_match" | "llm_judge";
+
+const SCORING_OPTIONS: { value: CustomScoringMethod; label: string }[] = [
+  { value: "exact_match", label: "Exact match — strict answer / option match" },
+  { value: "normalized_match", label: "Normalized match — ignores case, spacing and symbols" },
+  { value: "llm_judge", label: "LLM-as-a-judge — rubric grading with reasoning" },
+];
+
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+
+const SAMPLE_DATASET: DatasetRow[] = [
   {
-    prompt: "Given a PostgreSQL table 'orders(id, user_id, amount, created_at)', write a query to find the total revenue grouped by month for 2025.",
-    expected_answer: "SELECT DATE_TRUNC('month', created_at) AS month, SUM(amount) AS total_revenue FROM orders WHERE created_at >= '2025-01-01' AND created_at < '2026-01-01' GROUP BY DATE_TRUNC('month', created_at) ORDER BY month;",
+    prompt:
+      "Given a PostgreSQL table 'orders(id, user_id, amount, created_at)', write a query to find the total revenue grouped by month for 2025.",
+    expected_answer:
+      "SELECT DATE_TRUNC('month', created_at) AS month, SUM(amount) AS total_revenue FROM orders WHERE created_at >= '2025-01-01' AND created_at < '2026-01-01' GROUP BY DATE_TRUNC('month', created_at) ORDER BY month;",
   },
   {
-    prompt: "What HTTP status code should a server return when a client makes too many requests within a given time frame?",
+    prompt:
+      "What HTTP status code should a server return when a client makes too many requests within a given time frame?",
     expected_answer: "429",
   },
   {
-    prompt: "In React, which hook should be used to store a mutable reference that does not trigger a re-render when changed?",
+    prompt:
+      "In React, which hook should be used to store a mutable reference that does not trigger a re-render when changed?",
     expected_answer: "useRef",
   },
   {
-    prompt: "What is the time complexity of searching an element in a balanced Binary Search Tree (AVL or Red-Black tree) with N nodes?",
+    prompt:
+      "What is the time complexity of searching an element in a balanced Binary Search Tree (AVL or Red-Black tree) with N nodes?",
     expected_answer: "O(log n)",
   },
 ];
 
+const LABEL_CLASS = "mb-1.5 block text-xs font-medium text-foreground";
+
+const SELECT_CLASS =
+  "h-9 w-full min-w-0 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+/* ------------------------------------------------------------------ */
+/* Parsing                                                             */
+/* ------------------------------------------------------------------ */
+
+/** RFC 4180-style CSV parser: quoted fields may contain commas, quotes ("") and newlines. */
+function parseCSVRecords(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      row.push(field);
+      field = "";
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += ch;
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows.filter((r) => r.some((cell) => cell.trim().length > 0));
+}
+
+function parseCSV(text: string): DatasetRow[] {
+  const records = parseCSVRecords(text.replace(/^﻿/, ""));
+  if (records.length < 2) {
+    throw new Error("The CSV needs a header row and at least one data row.");
+  }
+
+  const header = records[0].map((h) => h.trim().toLowerCase());
+  const promptIdx = header.findIndex((h) => h.includes("prompt") || h.includes("question"));
+  const answerIdx = header.findIndex(
+    (h) => h.includes("answer") || h.includes("expected") || h.includes("ground_truth")
+  );
+  if (promptIdx === -1 || answerIdx === -1) {
+    throw new Error(
+      "The CSV must have a 'prompt' (or 'question') column and an 'expected_answer' (or 'answer') column."
+    );
+  }
+
+  const parsed = records
+    .slice(1)
+    .map((r) => ({
+      prompt: (r[promptIdx] ?? "").trim(),
+      expected_answer: (r[answerIdx] ?? "").trim(),
+    }))
+    .filter((q) => q.prompt && q.expected_answer);
+
+  if (parsed.length === 0) throw new Error("No valid rows could be read from the CSV.");
+  return parsed;
+}
+
+function pickField(item: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const v = item[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+  }
+  return "";
+}
+
+function parseJSON(text: string): DatasetRow[] {
+  const json: unknown = JSON.parse(text);
+  if (!Array.isArray(json)) throw new Error("The JSON file must be an array of objects.");
+  const parsed = json
+    .map((item: unknown) => {
+      if (typeof item !== "object" || item === null) return { prompt: "", expected_answer: "" };
+      const record = item as Record<string, unknown>;
+      return {
+        prompt: pickField(record, ["prompt", "question"]),
+        expected_answer: pickField(record, ["expected_answer", "answer", "ground_truth"]),
+      };
+    })
+    .filter((q) => q.prompt && q.expected_answer);
+  if (parsed.length === 0) {
+    throw new Error("No items with both a prompt and an answer were found in the JSON.");
+  }
+  return parsed;
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
+}
+
+/* ------------------------------------------------------------------ */
+/* Component                                                           */
+/* ------------------------------------------------------------------ */
+
 export function CustomBenchmarkModal({ isOpen, onClose, onCreated }: CustomBenchmarkModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [scoringMethod, setScoringMethod] = useState("exact_match");
-  const [questions, setQuestions] = useState<Array<{ prompt: string; expected_answer: string }>>([]);
+  const [scoringMethod, setScoringMethod] = useState<CustomScoringMethod>("exact_match");
+  const [questions, setQuestions] = useState<DatasetRow[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  function resetForm() {
+    setName("");
+    setDescription("");
+    setScoringMethod("exact_match");
+    setQuestions([]);
+    setFileName(null);
+    setIsDragging(false);
+    setError(null);
+  }
 
   function handleLoadSample() {
     setName("Enterprise Full-Stack QA (Sample)");
@@ -49,90 +210,57 @@ export function CustomBenchmarkModal({ isOpen, onClose, onCreated }: CustomBench
     setError(null);
   }
 
-  function parseCSV(text: string) {
-    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    if (lines.length < 2) {
-      throw new Error("CSV must contain a header row and at least one data row.");
-    }
-
-    const header = lines[0].toLowerCase().split(",").map((h) => h.trim().replace(/^["']|["']$/g, ""));
-    const promptIdx = header.findIndex((h) => h.includes("prompt") || h.includes("question"));
-    const answerIdx = header.findIndex((h) => h.includes("answer") || h.includes("expected") || h.includes("ground_truth"));
-
-    if (promptIdx === -1 || answerIdx === -1) {
-      throw new Error("CSV must contain 'prompt' (or 'question') and 'expected_answer' (or 'answer') columns.");
-    }
-
-    const parsed: Array<{ prompt: string; expected_answer: string }> = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      // Basic CSV field extraction handling quotes
-      const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
-      const matches: string[] = [];
-      let match;
-      while ((match = regex.exec(line)) !== null) {
-        if (match.index === regex.lastIndex) regex.lastIndex++;
-        let val = match[1] ?? "";
-        if (val.startsWith(",") || val.startsWith("\n")) val = val.slice(1);
-        if (val.startsWith('"') && val.endsWith('"')) {
-          val = val.slice(1, -1).replace(/""/g, '"');
-        }
-        matches.push(val.trim());
-      }
-
-      if (matches.length > Math.max(promptIdx, answerIdx)) {
-        const p = matches[promptIdx];
-        const a = matches[answerIdx];
-        if (p && a) {
-          parsed.push({ prompt: p, expected_answer: a });
-        }
-      }
-    }
-
-    if (parsed.length === 0) {
-      throw new Error("No valid rows could be extracted from the CSV file.");
-    }
-
-    return parsed;
-  }
-
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  function readFile(file: File) {
     setError(null);
     setFileName(file.name);
 
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith(".csv") && !lower.endsWith(".json")) {
+      setError("Upload a .csv or .json file.");
+      setQuestions([]);
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setError("The file is larger than 5 MB.");
+      setQuestions([]);
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
+    reader.onload = () => {
+      const content = typeof reader.result === "string" ? reader.result : "";
       try {
-        if (file.name.endsWith(".json")) {
-          const json = JSON.parse(content);
-          if (!Array.isArray(json)) throw new Error("JSON must be an array of objects.");
-          const parsed = json.map((item: any) => ({
-            prompt: String(item.prompt || item.question || ""),
-            expected_answer: String(item.expected_answer || item.answer || ""),
-          })).filter((q) => q.prompt && q.expected_answer);
-          if (parsed.length === 0) throw new Error("No valid items with prompt & answer found in JSON.");
-          setQuestions(parsed);
-        } else {
-          const parsed = parseCSV(content);
-          setQuestions(parsed);
-        }
-      } catch (err: any) {
-        setError(err.message || "Failed to parse file.");
+        setQuestions(lower.endsWith(".json") ? parseJSON(content) : parseCSV(content));
+      } catch (err: unknown) {
+        setError(errorMessage(err, "The file could not be parsed."));
         setQuestions([]);
       }
+    };
+    reader.onerror = () => {
+      setError("The file could not be read.");
+      setQuestions([]);
     };
     reader.readAsText(file);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Reset so choosing the same file again still fires `change`.
+    e.target.value = "";
+    if (file) readFile(file);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) readFile(file);
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (questions.length === 0) {
-      setError("Please upload a dataset or load the sample questions.");
+      setError("Upload a dataset or load the sample questions first.");
       return;
     }
 
@@ -143,189 +271,240 @@ export function CustomBenchmarkModal({ isOpen, onClose, onCreated }: CustomBench
       const res = await fetch("/api/benchmarks/custom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          description,
-          scoringMethod,
-          questions,
-        }),
+        body: JSON.stringify({ name: name.trim(), description: description.trim(), scoringMethod, questions }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to create custom benchmark.");
+      const body: unknown = await res.json().catch(() => null);
+      const data = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+      if (!res.ok || data.success !== true) {
+        const message = typeof data.error === "string" ? data.error : "";
+        throw new Error(message || `Could not create the benchmark (status ${res.status}).`);
       }
 
-      onCreated(data.data);
+      const created = data.data as CreatedBenchmark | undefined;
+      if (!created?.id) throw new Error("The server did not return the new benchmark.");
+
+      onCreated(created);
+      toast.success(`Benchmark “${created.name}” created`, {
+        description: `${created.total_questions} ${created.total_questions === 1 ? "question" : "questions"} · selected for your next run`,
+      });
+      resetForm();
       onClose();
-    } catch (err: any) {
-      setError(err.message || "An error occurred.");
+    } catch (err: unknown) {
+      toast.error("Couldn't save the benchmark", {
+        description: errorMessage(err, "Something went wrong while saving the benchmark."),
+      });
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-2xl border border-slate-200">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <span>Bring Your Own Benchmark</span>
-              <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px]">
-                BYOD
-              </Badge>
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Upload custom prompts & expected answers to test AI models against proprietary company data.
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Benchmark Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., SaaS SQL Generator QA"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Description (Optional)
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g., Tests internal database query generation"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Scoring Method
-            </label>
-            <select
-              value={scoringMethod}
-              onChange={(e) => setScoringMethod(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isSubmitting) onClose();
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/20 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs" />
+        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-lg outline-none transition-all duration-150 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0 sm:p-6">
+          <div className="mb-5 flex items-start justify-between gap-4 border-b border-border pb-4">
+            <div className="min-w-0">
+              <Dialog.Title className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+                Bring your own benchmark
+                <Badge variant="outline" className="border-brand/20 bg-brand/10 text-[10px] text-brand">
+                  BYOD
+                </Badge>
+              </Dialog.Title>
+              <Dialog.Description className="mt-1 text-xs text-muted-foreground">
+                Upload prompts with expected answers to evaluate models against your own data.
+              </Dialog.Description>
+            </div>
+            <Dialog.Close
+              render={<Button variant="ghost" size="icon-sm" className="-mt-1 -mr-1 shrink-0" />}
+              disabled={isSubmitting}
             >
-              <option value="exact_match">Exact Match (Strict regex & option match)</option>
-              <option value="normalized_match">Normalized Match (Strips whitespace, symbols & casing)</option>
-              <option value="llm_judge">LLM-as-a-Judge (Rubric-based grading with reasoning)</option>
-            </select>
+              <X />
+              <span className="sr-only">Close</span>
+            </Dialog.Close>
           </div>
 
-          {/* Upload Area */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-slate-700">
-                Dataset File (CSV or JSON)
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="byod-name" className={LABEL_CLASS}>
+                Benchmark name <span className="text-muted-foreground">(required)</span>
               </label>
-              <button
-                type="button"
-                onClick={handleLoadSample}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+              <Input
+                id="byod-name"
+                type="text"
+                required
+                maxLength={120}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. SaaS SQL generator QA"
+                className="h-9"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="byod-description" className={LABEL_CLASS}>
+                Description <span className="text-muted-foreground">(optional)</span>
+              </label>
+              <Input
+                id="byod-description"
+                type="text"
+                maxLength={500}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g. Tests internal database query generation"
+                className="h-9"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="byod-scoring" className={LABEL_CLASS}>
+                Scoring method
+              </label>
+              <select
+                id="byod-scoring"
+                value={scoringMethod}
+                onChange={(e) => setScoringMethod(e.target.value as CustomScoringMethod)}
+                className={SELECT_CLASS}
               >
-                <Sparkles className="h-3 w-3" /> Load Sample Dataset
-              </button>
-            </div>
-
-            <div className="border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-5 text-center transition-colors bg-slate-50/50">
-              <Upload className="mx-auto h-6 w-6 text-slate-400 mb-2" />
-              <p className="text-xs font-medium text-slate-700">
-                Drag and drop your file here, or{" "}
-                <label className="text-indigo-600 hover:underline cursor-pointer font-semibold">
-                  browse
-                  <input
-                    type="file"
-                    accept=".csv,.json"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                </label>
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                CSV headers required: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-600">prompt, expected_answer</code>
-              </p>
-
-              {fileName && (
-                <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 border border-indigo-100">
-                  <FileText className="h-3.5 w-3.5" />
-                  <span>{fileName}</span>
-                  <span className="text-slate-400">•</span>
-                  <span>{questions.length} questions parsed</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Questions Preview */}
-          {questions.length > 0 && (
-            <div className="rounded-lg border border-slate-200 overflow-hidden text-xs">
-              <div className="bg-slate-50 px-3 py-2 font-semibold text-slate-600 border-b border-slate-200 flex justify-between items-center">
-                <span>Preview ({questions.length} items)</span>
-                <span className="text-[10px] text-slate-400">Showing first 2</span>
-              </div>
-              <div className="divide-y divide-slate-100 max-h-36 overflow-y-auto">
-                {questions.slice(0, 2).map((q, idx) => (
-                  <div key={idx} className="p-2.5 space-y-1 bg-white">
-                    <p className="font-medium text-slate-800 line-clamp-1">Q: {q.prompt}</p>
-                    <p className="text-slate-500 font-mono text-[11px] line-clamp-1">Expected: {q.expected_answer}</p>
-                  </div>
+                {SCORING_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
                 ))}
+              </select>
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                The scorer is saved with the benchmark and used for every run.
+              </p>
+            </div>
+
+            {/* Upload area */}
+            <div>
+              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-medium text-foreground">Dataset file (CSV or JSON)</span>
+                <button
+                  type="button"
+                  onClick={handleLoadSample}
+                  className="inline-flex items-center gap-1 rounded-md text-[11px] font-medium text-brand outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <Sparkles className="h-3 w-3" /> Load sample dataset
+                </button>
               </div>
-            </div>
-          )}
 
-          {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+              <label
+                htmlFor="byod-file"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={cn(
+                  "block cursor-pointer rounded-xl border-2 border-dashed p-5 text-center transition-colors has-[:focus-visible]:border-ring",
+                  isDragging
+                    ? "border-brand/50 bg-brand/5"
+                    : "border-border bg-muted/40 hover:border-brand/30"
+                )}
+              >
+                <input
+                  id="byod-file"
+                  type="file"
+                  accept=".csv,.json,text/csv,application/json"
+                  onChange={handleFileInput}
+                  className="sr-only"
+                />
+                <Upload className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+                <p className="text-xs font-medium text-foreground/80">
+                  Drop a file here, or <span className="font-semibold text-brand">browse</span>
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Required columns:{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-foreground/80">
+                    prompt, expected_answer
+                  </code>
+                </p>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || questions.length === 0}
-              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-xs"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Save & Enable for Evals
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+                {fileName && (
+                  <span className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
+                    <FileText className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{fileName}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="shrink-0 font-mono tabular-nums">
+                      {questions.length} {questions.length === 1 ? "question" : "questions"}
+                    </span>
+                  </span>
+                )}
+              </label>
+            </div>
+
+            {/* Preview */}
+            {questions.length > 0 && (
+              <div className="overflow-hidden rounded-lg border border-border text-xs">
+                <div className="flex items-center justify-between border-b border-border bg-muted/50 px-3 py-2 font-medium text-foreground/80">
+                  <span>Preview ({questions.length} items)</span>
+                  <span className="text-[10px] font-normal text-muted-foreground">
+                    Showing first {Math.min(2, questions.length)}
+                  </span>
+                </div>
+                <div className="max-h-36 divide-y divide-border overflow-y-auto">
+                  {questions.slice(0, 2).map((q, idx) => (
+                    <div key={idx} className="space-y-1 bg-card p-2.5">
+                      <p className="line-clamp-1 font-medium text-foreground">Q: {q.prompt}</p>
+                      <p className="line-clamp-1 font-mono text-[11px] text-muted-foreground">
+                        Expected: {q.expected_answer}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive"
+              >
+                <AlertCircle className="mt-px h-4 w-4 shrink-0" />
+                <span className="min-w-0 [overflow-wrap:anywhere]">{error}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="px-4"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isSubmitting || questions.length === 0 || !name.trim()}
+                className="px-4"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 data-icon="inline-start" className="animate-spin" /> Saving…
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 data-icon="inline-start" /> Save and enable for evals
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

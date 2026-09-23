@@ -1,78 +1,83 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-} from "recharts";
-import { motion } from "motion/react";
+import { lazy, Suspense, useState } from "react";
+import Link from "next/link";
 import { BarChart3, AlignLeft } from "lucide-react";
+import { AccuracyWithCI } from "@/components/evaluations/accuracy-with-ci";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatModelName, formatNumber, formatVendor } from "@/lib/format";
+import { getVendorColor } from "@/lib/vendor-colors";
+import { cn } from "@/lib/utils";
+import type { ChartRow } from "./top-models-bar-chart";
+
+// Recharts is only needed for the "Bars" view, so it lives in its own chunk: the default
+// "Ranked" view ships without it. Preloaded on hover/focus of the toggle so the switch is instant.
+const loadBarChart = () => import("./top-models-bar-chart");
+const TopModelsBarChart = lazy(() => loadBarChart().then((m) => ({ default: m.TopModelsBarChart })));
+function preloadBarChart() {
+  void loadBarChart();
+}
+
+export interface TopModelsChartDatum {
+  name: string;
+  /** Accuracy (0–100) or any other score, depending on `metric`. */
+  score: number;
+  vendor: string;
+  /** Wilson 95% CI bounds (0–100). Shown whenever the metric is accuracy. */
+  ciLower?: number | null;
+  ciUpper?: number | null;
+  /** Benchmark the score comes from — disambiguates ties across suites. */
+  benchmark?: string | null;
+  /** Sample size (questions evaluated) behind the score. */
+  n?: number | null;
+  /** Optional drill-down link (e.g. the evaluation detail page). */
+  href?: string;
+}
 
 export interface TopModelsChartProps {
-  data: Array<{
-    name: string;
-    score: number;
-    vendor: string;
-  }>;
+  data: TopModelsChartDatum[];
   label?: string;
   height?: number;
+  /**
+   * `accuracy` renders the value with its Wilson CI (CLAUDE.md rule 1).
+   * Defaults to `accuracy` when the label mentions "%" or "accuracy", otherwise `score`.
+   */
+  metric?: "accuracy" | "score";
 }
 
-export const VENDOR_PALETTE: Record<
-  string,
-  { hex: string; bg: string; border: string; text: string; label: string }
-> = {
-  Anthropic: { hex: "#EA580C", bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-950", label: "Anthropic" },
-  OpenAI: { hex: "#171717", bg: "bg-neutral-100", border: "border-neutral-300", text: "text-neutral-950", label: "OpenAI" },
-  Google: { hex: "#2563EB", bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-950", label: "Google" },
-  DeepSeek: { hex: "#6366F1", bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-950", label: "DeepSeek" },
-  Meta: { hex: "#0284C7", bg: "bg-sky-50", border: "border-sky-200", text: "text-sky-950", label: "Meta" },
-  Alibaba: { hex: "#0D9488", bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-950", label: "Alibaba" },
-  Qwen: { hex: "#0D9488", bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-950", label: "Alibaba" },
-  Mistral: { hex: "#F97316", bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-950", label: "Mistral" },
-  "xAI": { hex: "#475569", bg: "bg-slate-100", border: "border-slate-300", text: "text-slate-900", label: "xAI" },
-  Microsoft: { hex: "#059669", bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-950", label: "Microsoft" },
-  Cohere: { hex: "#E11D48", bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-950", label: "Cohere" },
-  Inclusionai: { hex: "#78716C", bg: "bg-stone-100", border: "border-stone-200", text: "text-stone-800", label: "InclusionAI" },
-};
-
-function getVendorInfo(vendor: string) {
-  const norm = Object.keys(VENDOR_PALETTE).find(
-    (k) => k.toLowerCase() === vendor.toLowerCase()
-  );
-  return norm
-    ? VENDOR_PALETTE[norm]
-    : { hex: "#737373", bg: "bg-muted", border: "border-border", text: "text-foreground", label: vendor };
+function hasCI(d: TopModelsChartDatum): d is TopModelsChartDatum & { ciLower: number; ciUpper: number } {
+  return typeof d.ciLower === "number" && typeof d.ciUpper === "number";
 }
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: TopModelsChartProps["data"][0] }> }) {
-  if (!active || !payload?.[0]) return null;
-  const d = payload[0].payload;
-  const vendorInfo = getVendorInfo(d.vendor);
+export function describeSource(d: TopModelsChartDatum): string | null {
+  const parts: string[] = [];
+  if (d.benchmark) parts.push(d.benchmark);
+  if (typeof d.n === "number" && d.n > 0) parts.push(`n=${formatNumber(d.n)}`);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+export function ScoreValue({ d, isAccuracy, unit, size = "xs" }: { d: TopModelsChartDatum; isAccuracy: boolean; unit: string; size?: "xs" | "sm" }) {
+  if (isAccuracy) {
+    return (
+      <AccuracyWithCI
+        accuracy={d.score}
+        lower={d.ciLower ?? null}
+        upper={d.ciUpper ?? null}
+        size={size}
+        valueClassName="font-semibold"
+      />
+    );
+  }
   return (
-    <div className="rounded-xl border border-border bg-card px-3.5 py-2.5 shadow-md">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: vendorInfo.hex }} />
-        <p className="text-xs font-semibold text-foreground">{d.name}</p>
-      </div>
-      <p className="text-xs text-muted-foreground">{vendorInfo.label}</p>
-      <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-xs text-muted-foreground">Score</span>
-        <span className="font-mono text-sm font-semibold text-foreground">{d.score.toFixed(1)}</span>
-      </div>
-    </div>
+    <span className="font-mono tabular-nums">
+      <span className={cn("font-semibold text-foreground", size === "sm" ? "text-sm" : "text-xs")}>{d.score.toFixed(1)}</span>
+      <span className="ml-1 text-xs text-muted-foreground">{unit}</span>
+    </span>
   );
 }
 
-export function TopModelsChart({ data, label = "Score", height = 320 }: TopModelsChartProps) {
+export function TopModelsChart({ data, label = "Score", height = 320, metric }: TopModelsChartProps) {
   const [layoutMode, setLayoutMode] = useState<"horizontal" | "vertical">("horizontal");
-
-  const maxScore = useMemo(() => {
-    return data.length > 0 ? Math.max(...data.map((d) => d.score), 100) : 100;
-  }, [data]);
-
-  const formatName = (fullName: string) => {
-    return fullName.replace(/^(Anthropic|OpenAI|Google|DeepSeek|Meta|Qwen|Alibaba|Mistral|inclusionAI):\s*/i, "");
-  };
 
   if (!data || data.length === 0) {
     return (
@@ -82,155 +87,134 @@ export function TopModelsChart({ data, label = "Score", height = 320 }: TopModel
     );
   }
 
+  const isAccuracy = (metric ?? (/%|accuracy/i.test(label) ? "accuracy" : "score")) === "accuracy";
+  const unit = label.includes("%") ? "%" : "pts";
+  const maxScore = Math.max(...data.map((d) => d.score), 100);
+
+  const ranked = data.slice(0, 10);
+  const columns: ChartRow[] = data.slice(0, 12).map((d) => ({
+    ...d,
+    ciError: isAccuracy && hasCI(d) ? [Math.max(0, d.score - d.ciLower), Math.max(0, d.ciUpper - d.score)] : undefined,
+  }));
+
+  // Legend reflects the vendors actually on screen, in rank order.
+  const legendVendors = [...new Set(ranked.map((d) => formatVendor(d.vendor)))].slice(0, 6);
+
   return (
     <div className="space-y-4">
-      {/* Sub-header with Layout Switcher and Vendor Legend */}
+      {/* Sub-header: vendor legend + layout switcher */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-        {/* Vendor Color Legend */}
         <div className="flex flex-wrap items-center gap-2">
-          {[
-            { label: "Anthropic", hex: "#EA580C" },
-            { label: "OpenAI", hex: "#171717" },
-            { label: "Google", hex: "#2563EB" },
-            { label: "DeepSeek", hex: "#6366F1" },
-            { label: "Alibaba", hex: "#0D9488" },
-          ].map((item) => (
+          {legendVendors.map((vendor) => (
             <span
-              key={item.label}
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-border bg-muted/40 text-muted-foreground text-xs font-medium"
+              key={vendor}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-xs font-medium text-muted-foreground"
             >
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.hex }} />
-              {item.label}
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getVendorColor(vendor) }} />
+              {vendor}
             </span>
           ))}
         </div>
 
-        {/* View Mode Switcher */}
-        <div className="flex items-center rounded-lg border border-border bg-muted/50 p-0.5">
-          <button
-            type="button"
-            onClick={() => setLayoutMode("horizontal")}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
-              layoutMode === "horizontal"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <AlignLeft className="h-3.5 w-3.5" />
-            Ranked
-          </button>
-          <button
-            type="button"
-            onClick={() => setLayoutMode("vertical")}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
-              layoutMode === "vertical"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <BarChart3 className="h-3.5 w-3.5" />
-            Bars
-          </button>
+        <div className="flex items-center rounded-lg border border-border bg-muted/50 p-0.5" role="group" aria-label="Chart layout">
+          {([
+            { mode: "horizontal", label: "Ranked", icon: AlignLeft },
+            { mode: "vertical", label: "Bars", icon: BarChart3 },
+          ] as const).map((opt) => (
+            <button
+              key={opt.mode}
+              type="button"
+              onClick={() => setLayoutMode(opt.mode)}
+              onPointerEnter={opt.mode === "vertical" ? preloadBarChart : undefined}
+              onFocus={opt.mode === "vertical" ? preloadBarChart : undefined}
+              aria-pressed={layoutMode === opt.mode}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                layoutMode === opt.mode
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <opt.icon className="h-3.5 w-3.5" />
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {layoutMode === "horizontal" ? (
-        /* Ranked Horizontal Spec List */
-        <div className="space-y-2 pt-1">
-          {data.slice(0, 10).map((d, index) => {
-            const vendorInfo = getVendorInfo(d.vendor);
+        <ol className="space-y-2 pt-1">
+          {ranked.map((d, index) => {
+            const color = getVendorColor(d.vendor);
             const percentage = Math.min(100, Math.max(0, (d.score / maxScore) * 100));
-            const rankStr = String(index + 1).padStart(2, "0");
+            const source = describeSource(d);
+            const rowClass =
+              "group relative grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-card px-3 py-2.5 transition-colors sm:grid-cols-[1.5rem_minmax(0,16rem)_minmax(0,1fr)_auto] sm:gap-x-4 sm:px-4";
+            const content = (
+              <>
+                <span className="font-mono text-xs font-semibold text-muted-foreground transition-colors group-hover:text-foreground">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
 
-            return (
-              <motion.div
-                key={d.name}
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.25, delay: index * 0.02 }}
-                className="group relative flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl border border-border bg-card p-2.5 sm:px-4 sm:py-2.5 hover:border-border/80 hover:shadow-xs transition-all"
-              >
-                {/* Left: Rank & Identity */}
-                <div className="flex items-center gap-3 sm:w-64 shrink-0">
-                  <span className="font-mono text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors w-6">
-                    {rankStr}
-                  </span>
-                  <span
-                    className="h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: vendorInfo.hex }}
-                  />
-                  <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                  <div className="min-w-0">
                     <p className="truncate text-xs font-semibold text-foreground" title={d.name}>
-                      {formatName(d.name)}
+                      {formatModelName(d.name)}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {vendorInfo.label}
+                    <p className="truncate text-xs text-muted-foreground">
+                      {formatVendor(d.vendor)}
+                      {source ? <span className="font-mono"> · {source}</span> : null}
                     </p>
                   </div>
                 </div>
 
-                {/* Middle: Proportional Bar */}
-                <div className="flex-1 relative flex items-center h-5">
-                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full transition-all duration-500 ease-out"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${percentage}%` }}
-                      style={{ backgroundColor: vendorInfo.hex }}
+                {/* Proportional bar: full row on mobile, middle column from sm */}
+                <div className="col-span-3 col-start-1 row-start-2 flex h-4 items-center sm:col-span-1 sm:col-start-3 sm:row-start-1">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    {/* Grows in from the left: the bar slides in by its own width and the track clips
+                        it, so its right edge follows the same curve as a 0 -> width tween (CSS only). */}
+                    <div
+                      className="h-full rounded-full animate-in fill-mode-both slide-in-from-left-full duration-500 ease-[cubic-bezier(0,0,0.58,1)]"
+                      style={{ width: `${percentage}%`, backgroundColor: color, animationDelay: `${index * 20}ms` }}
                     />
                   </div>
                 </div>
 
-                {/* Right: Score */}
-                <div className="flex items-center justify-end gap-1.5 sm:w-24 shrink-0 font-mono text-right">
-                  <span className="text-xs font-semibold text-foreground">
-                    {d.score.toFixed(1)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {label.includes("%") ? "%" : "pts"}
-                  </span>
+                <div className="col-start-3 row-start-1 flex justify-end text-right sm:col-start-4 sm:min-w-28">
+                  <ScoreValue d={d} isAccuracy={isAccuracy} unit={unit} />
                 </div>
-              </motion.div>
+              </>
+            );
+
+            return (
+              <li
+                key={`${d.name}-${index}`}
+                className="animate-in fill-mode-both fade-in slide-in-from-left-[6px] duration-250 ease-[cubic-bezier(0.42,0,0.58,1)]"
+                style={{ animationDelay: `${index * 20}ms` }}
+              >
+                {d.href ? (
+                  <Link href={d.href} className={cn(rowClass, "hover:border-foreground/20 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40")}>
+                    {content}
+                  </Link>
+                ) : (
+                  <div className={rowClass}>{content}</div>
+                )}
+              </li>
             );
           })}
-        </div>
+        </ol>
       ) : (
-        /* Recharts Column View */
-        <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={data.slice(0, 12)} margin={{ top: 12, right: 12, left: -10, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.6} />
-            <XAxis
-              dataKey="name"
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              tickLine={false}
-              axisLine={{ stroke: "var(--border)" }}
-              tickFormatter={(val) => formatName(val).slice(0, 14)}
-              angle={-20}
-              textAnchor="end"
-              height={50}
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              tickLine={false}
-              axisLine={false}
-              domain={[0, Math.ceil(maxScore / 10) * 10]}
-              label={{ value: label, angle: -90, position: "insideLeft", style: { fontSize: 11, fill: "var(--muted-foreground)" } }}
-            />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
-            <Bar dataKey="score" radius={[4, 4, 0, 0]} barSize={26}>
-              {data.slice(0, 12).map((d, i) => {
-                const vendorInfo = getVendorInfo(d.vendor);
-                return (
-                  <Cell
-                    key={i}
-                    fill={vendorInfo.hex}
-                    className="transition-opacity hover:opacity-85"
-                  />
-                );
-              })}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <Suspense fallback={<Skeleton className="w-full rounded-lg" style={{ height }} />}>
+          <TopModelsBarChart
+            columns={columns}
+            label={label}
+            height={height}
+            maxScore={maxScore}
+            isAccuracy={isAccuracy}
+            unit={unit}
+          />
+        </Suspense>
       )}
     </div>
   );
